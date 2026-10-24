@@ -1,261 +1,593 @@
-/* LifeOS Finance — application logic. Data is stored in this browser's localStorage. */
-(() => {
-  "use strict";
-  const $ = (selector) => document.querySelector(selector);
-  const money = (value) => `${Math.round(Number(value) || 0).toLocaleString("ru-RU")} сом`;
-  const todayISO = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-  };
-  const STORAGE_KEY = "lifeos-finance-v1";
-  const defaultData = () => ({
-    salary: 60000, credit: 30000, extraIncome: 0,
-    expenses: [], goals: [{id: "watch-goal", name: "Умные часы", target: 40000, saved: 0, image: ""}],
-    weight: 62, weightGoal: 70, water: 0, waterDate: todayISO(), calories: 0, calorieDate: todayISO()
-  });
-  let data = loadData();
-  let cashflowChart = null, categoryChart = null;
-  const categories = {
-    "Food & Shops": {icon:"fa-basket-shopping", color:"#a397ff"},
-    "Auto & Gas": {icon:"fa-car", color:"#70d6e3"},
-    "Entertainment": {icon:"fa-film", color:"#ffb16e"},
-    "Utilities": {icon:"fa-bolt", color:"#70e1c1"},
-    "Other": {icon:"fa-ellipsis", color:"#f18ca9"}
-  };
+let state = {
+    currentDate: new Date(),
+    currency: 'KGS',
+    dailyLimit: 2500,
+    wallets: [
+        { id: 'cash', name: 'Наличные', icon: 'fa-wallet', color: 'bg-cyan-500/20 text-cyan-400', balance: 5000 },
+        { id: 'card', name: 'Карта VISA', icon: 'fa-credit-card', color: 'bg-rose-500/20 text-rose-400', balance: 15000 }
+    ],
+    incomes: [
+        { id: 'inc1', name: 'Зарплата', icon: 'fa-money-bill-wave', color: 'bg-emerald-500/20 text-emerald-400' },
+        { id: 'inc2', name: 'Фриланс', icon: 'fa-briefcase', color: 'bg-blue-500/20 text-blue-400' }
+    ],
+    categories: [
+        { id: 'cat1', name: 'Продукты', icon: 'fa-cart-shopping', color: 'bg-sky-500/20 text-sky-400' },
+        { id: 'cat2', name: 'Еда / Кофе', icon: 'fa-burger', color: 'bg-lime-500/20 text-lime-400' },
+        { id: 'cat3', name: 'Транспорт', icon: 'fa-taxi', color: 'bg-amber-500/20 text-amber-400' },
+        { id: 'cat4', name: 'Спорт', icon: 'fa-dumbbell', color: 'bg-purple-500/20 text-purple-400' },
+        { id: 'cat5', name: 'Горы', icon: 'fa-mountain', color: 'bg-teal-500/20 text-teal-400' },
+        { id: 'cat6', name: 'Развлечения', icon: 'fa-film', color: 'bg-fuchsia-500/20 text-fuchsia-400' }
+    ],
+    loans: [
+        { id: 'l1', name: 'Кредит на авто', totalAmount: 50000, monthlyPayment: 10000, remaining: 30000 }
+    ],
+    goals: [
+        { id: 'g1', name: 'Smart Watch', target: 40000, saved: 12000, monthlyPledge: 5000 }
+    ],
+    transactions: []
+};
 
-  function loadData() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return saved && typeof saved === "object" ? {...defaultData(), ...saved} : defaultData();
-    } catch { return defaultData(); }
-  }
-  function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-  function expensesThisMonth() {
-    const now = new Date();
-    return data.expenses.filter(e => {
-      const d = new Date(`${e.date}T12:00:00`);
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    });
-  }
-  function totalExpenses(items = expensesThisMonth()) { return items.reduce((sum, e) => sum + Number(e.amount || 0), 0); }
-  function totalSaved() { return data.goals.reduce((sum, g) => sum + Number(g.saved || 0), 0); }
-  function currentIncome() { return Number(data.salary) + Number(data.extraIncome); }
-  function monthBalance() { return currentIncome() - Number(data.credit) - totalExpenses(); }
-  function setGreeting() {
-    const hour = new Date().getHours();
-    let greeting = "Добро пожаловать! Мы так ждали вас";
-    if (hour >= 5 && hour < 12) greeting = "Доброе утро! Мы так ждали вас";
-    else if (hour >= 12 && hour < 18) greeting = "Добрый день! Мы так ждали вас";
-    else if (hour >= 18 && hour < 23) greeting = "Добрый вечер! Мы так ждали вас";
-    else greeting = "Доброй ночи! Мы так ждали вас";
-    $("#greeting").textContent = greeting;
-    $("#todayLabel").textContent = "ТВОЙ ДЕНЬ • FINANCE & WELLNESS";
-    $("#currentDate").textContent = new Intl.DateTimeFormat("ru-RU", {day:"numeric", month:"long", year:"numeric"}).format(new Date());
-  }
-  function syncDailyCounters() {
-    if (data.waterDate !== todayISO()) { data.water = 0; data.waterDate = todayISO(); }
-    if (data.calorieDate !== todayISO()) { data.calories = 0; data.calorieDate = todayISO(); }
-  }
-  function render() {
-    syncDailyCounters();
-    const monthExpenses = expensesThisMonth();
-    const spent = totalExpenses(monthExpenses);
-    $("#balanceValue").textContent = money(monthBalance());
-    $("#incomeValue").textContent = money(currentIncome());
-    $("#expenseValue").textContent = money(spent);
-    $("#expenseCount").textContent = monthExpenses.length;
-    $("#savedValue").textContent = money(totalSaved());
-    $("#balanceStatus").textContent = monthBalance() >= 0 ? "Баланс под контролем" : "Расходы выше доступного дохода";
-    $("#balanceStatus").style.color = monthBalance() >= 0 ? "var(--accent2)" : "#ff9aa5";
-    $("#salaryInput").value = data.salary;
-    $("#creditInput").value = data.credit;
-    $("#extraIncomeInput").value = data.extraIncome;
-    $("#afterCredit").textContent = money(currentIncome() - Number(data.credit));
-    $("#freeCash").textContent = money(monthBalance());
-    $("#expenseDate").value ||= todayISO();
-    $("#historyCount").textContent = `${data.expenses.length} записей`;
-    renderExpenses();
+let currentTxType = 'expense';
+let currentReportType = 'month';
+let reportChartInstance = null;
+let itemToDelete = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadState();
+    autoSetCurrentMonth();
+    renderUI();
+    initChart();
+});
+
+function loadState() {
+    const saved = localStorage.getItem('mta_247_v8_pro');
+    if (saved) {
+        try { 
+            let parsed = JSON.parse(saved);
+            state = { ...state, ...parsed };
+        } catch (e) {}
+    }
+}
+
+// Автоматически ставит текущий реальный месяц при запуске
+function autoSetCurrentMonth() {
+    state.currentDate = new Date();
+}
+
+function saveState() {
+    localStorage.setItem('mta_247_v8_pro', JSON.stringify(state));
+}
+
+function renderUI() {
+    updatePeriodLabel();
+    renderPanel();
+    renderLoans();
     renderGoals();
-    renderWellness();
-    renderCharts();
-    saveData();
-  }
-  function renderExpenses() {
-    const list = $("#expenseList");
-    const sorted = [...data.expenses].sort((a,b) => `${b.date}${b.createdAt || ""}`.localeCompare(`${a.date}${a.createdAt || ""}`)).slice(0,12);
-    if (!sorted.length) { list.innerHTML = '<div class="empty-state">Пока нет расходов. Добавь первую операцию выше.</div>'; return; }
-    list.innerHTML = sorted.map(e => {
-      const category = categories[e.category] || categories.Other;
-      const date = new Date(`${e.date}T12:00:00`).toLocaleDateString("ru-RU",{day:"numeric",month:"short"});
-      return `<div class="expense-item"><div class="expense-icon" style="color:${category.color}"><i class="fa-solid ${category.icon}"></i></div><div class="expense-main"><strong>${escapeHTML(e.name)}</strong><span>${escapeHTML(e.category)} · ${date}</span></div><strong class="expense-amount">−${money(e.amount)}</strong><button class="delete-button" data-delete-expense="${e.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button></div>`;
-    }).join("");
-  }
-  function renderGoals() {
-    const list = $("#goalList");
-    if (!data.goals.length) { list.innerHTML = '<div class="empty-state">Добавь цель, чтобы начать копить.</div>'; return; }
-    list.innerHTML = data.goals.map(g => {
-      const target = Math.max(1, Number(g.target) || 1), saved = Math.max(0, Number(g.saved) || 0);
-      const percent = Math.min(100, Math.round(saved / target * 100));
-      const remaining = Math.max(0, target - saved);
-      const monthlySave = Math.max(0, monthBalance());
-      const months = monthlySave > 0 ? Math.ceil(remaining / monthlySave) : null;
-      const arrival = months !== null ? new Date(new Date().getFullYear(), new Date().getMonth() + months, 1).toLocaleDateString("ru-RU",{month:"long",year:"numeric"}) : "нужен план накоплений";
-      const thumb = g.image ? `<img class="goal-thumb" src="${g.image}" alt="">` : `<div class="goal-thumb"><i class="fa-solid fa-bullseye"></i></div>`;
-      return `<div class="goal-card"><div class="goal-title-row">${thumb}<div class="goal-name"><strong>${escapeHTML(g.name)}</strong><span>Цель: ${money(target)}</span></div><span class="goal-money">${money(saved)}</span></div><div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div><div class="goal-bottom"><span>${percent}% · Осталось ${money(remaining)}</span><span class="muted">Ориентир: ${arrival}</span></div><div class="goal-bottom" style="margin-top:11px"><span>Пополняй понемногу</span><div class="goal-actions"><button data-contribute="${g.id}">+ 500 сом</button><button data-edit-goal="${g.id}">Изменить</button><button data-delete-goal="${g.id}" aria-label="Удалить цель">×</button></div></div></div>`;
-    }).join("");
-  }
-  function renderWellness() {
-    $("#weightValue").textContent = Number(data.weight).toLocaleString("ru-RU");
-    $("#weightGoalText").textContent = `${Number(data.weightGoal).toLocaleString("ru-RU")} кг`;
-    $("#weightInput").value = data.weight;
-    $("#weightGoalInput").value = data.weightGoal;
-    const progress = Number(data.weightGoal) === 62 ? 100 : Math.max(0, Math.min(100, (Number(data.weight)-62)/(Number(data.weightGoal)-62)*100));
-    $("#weightProgress").style.width = `${progress}%`;
-    $("#waterValue").textContent = data.water;
-    $("#waterGlasses").innerHTML = Array.from({length:8},(_,i)=>`<button class="water-glass" data-water="${i+1}" aria-label="Стакан ${i+1}" style="--fill:${i < data.water ? 100 : 0}%"></button>`).join("");
-    $("#calorieValue").textContent = `${Number(data.calories).toLocaleString("ru-RU")} ккал`;
-  }
-  function renderCharts() {
-    if (typeof Chart === "undefined") return;
-    const labels = [];
-    const incomeData = [], expenseData = [];
-    for (let i=5;i>=0;i--) {
-      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
-      labels.push(d.toLocaleDateString("ru-RU",{month:"short"}));
-      const monthItems = data.expenses.filter(e => { const ed = new Date(`${e.date}T12:00:00`); return ed.getFullYear()===d.getFullYear() && ed.getMonth()===d.getMonth(); });
-      expenseData.push(totalExpenses(monthItems));
-      incomeData.push(currentIncome());
-    }
-    const cashCtx = $("#cashflowChart").getContext("2d");
-    if (cashflowChart) cashflowChart.destroy();
-    cashflowChart = new Chart(cashCtx,{type:"line",data:{labels,datasets:[
-      {label:"Доход",data:incomeData,borderColor:"#70e1c1",backgroundColor:"#70e1c116",fill:true,tension:.38,borderWidth:2,pointRadius:2},
-      {label:"Расходы + кредит",data:expenseData.map(v=>v+Number(data.credit)),borderColor:"#a397ff",backgroundColor:"#a397ff10",fill:true,tension:.38,borderWidth:2,pointRadius:2}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:"#aab2c8",boxWidth:8,boxHeight:8,usePointStyle:true,font:{size:10}}}},scales:{x:{grid:{color:"#ffffff08"},ticks:{color:"#818ba4",font:{size:10}}},y:{grid:{color:"#ffffff0b"},ticks:{color:"#818ba4",font:{size:10},callback:v=>`${Number(v).toLocaleString("ru-RU")}`}}}}});
-    const current = expensesThisMonth();
-    const values = Object.keys(categories).map(k => current.filter(e=>e.category===k).reduce((s,e)=>s+Number(e.amount),0));
-    const colors = Object.values(categories).map(c=>c.color);
-    $("#donutTotal").textContent = Math.round(totalExpenses(current)).toLocaleString("ru-RU");
-    const catCtx = $("#categoryChart").getContext("2d");
-    if (categoryChart) categoryChart.destroy();
-    categoryChart = new Chart(catCtx,{type:"doughnut",data:{labels:Object.keys(categories),datasets:[{data:values.some(v=>v>0)?values:[1,1,1,1,1],backgroundColor:values.some(v=>v>0)?colors:colors.map(c=>c+"35"),borderWidth:0,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:"76%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${money(values[ctx.dataIndex])}`}}}}});
-    $("#categoryLegend").innerHTML = Object.keys(categories).map((k,i)=>`<div class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span><span>${k}</span><strong>${money(values[i])}</strong></div>`).join("");
-  }
-  function escapeHTML(value) { return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+    renderForecast();
+    renderHistory();
+    renderReport();
+    saveState();
+}
 
-  $("#incomeForm").addEventListener("submit", e => {
-    e.preventDefault();
-    data.salary = Math.max(0, Number($("#salaryInput").value)||0);
-    data.credit = Math.max(0, Number($("#creditInput").value)||0);
-    data.extraIncome = Math.max(0, Number($("#extraIncomeInput").value)||0);
-    render(); toastMessage("Финансовые настройки сохранены.");
-  });
-  $("#expenseForm").addEventListener("submit", e => {
-    e.preventDefault();
-    const name = $("#expenseName").value.trim(), amount = Number($("#expenseAmount").value);
-    if (!name || amount <= 0) return;
-    data.expenses.push({id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`,name,amount,category:$("#expenseCategory").value,date:$("#expenseDate").value || todayISO(),createdAt:String(Date.now())});
-    $("#expenseName").value = ""; $("#expenseAmount").value = "";
-    render(); toastMessage("Расход добавлен.");
-  });
-  $("#expenseList").addEventListener("click", e => {
-    const button = e.target.closest("[data-delete-expense]");
-    if (!button) return;
-    data.expenses = data.expenses.filter(item=>item.id !== button.dataset.deleteExpense); render();
-  });
-  $("#goalForm").addEventListener("submit", e => {
-    e.preventDefault();
-    const name = $("#goalName").value.trim(), target = Number($("#goalTarget").value), saved = Number($("#goalSaved").value)||0;
-    if (!name || target <= 0) return;
-    const file = $("#goalImage").files[0];
-    const addGoal = image => {
-      data.goals.push({id:`goal-${Date.now()}`,name,target,saved:Math.min(saved,target),image:image||""});
-      $("#goalName").value="";$("#goalTarget").value="";$("#goalSaved").value="0";$("#goalImage").value="";
-      render(); toastMessage("Цель добавлена.");
+function updatePeriodLabel() {
+    const monthNames = ["ЯНВАРЬ", "ФЕВРАЛЬ", "МАРТ", "АПРЕЛЬ", "МАЙ", "ИЮНЬ", "ИЮЛЬ", "АВГУСТ", "СЕНТЯБРЬ", "ОКТЯБРЬ", "НОЯБРЬ", "ДЕКАБРЬ"];
+    let m = monthNames[state.currentDate.getMonth()];
+    let y = state.currentDate.getFullYear();
+    document.getElementById('currentPeriodLabel').innerText = `${m} ${y}`;
+}
+
+function changePeriod(delta) {
+    state.currentDate.setMonth(state.currentDate.getMonth() + delta);
+    renderUI();
+}
+
+function getPeriodPrefix() {
+    let y = state.currentDate.getFullYear();
+    let m = String(state.currentDate.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+}
+
+function renderPanel() {
+    const period = getPeriodPrefix();
+    const periodTx = state.transactions.filter(t => t.date.startsWith(period));
+
+    // 1. ДОХОДЫ
+    let totalInc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    document.getElementById('totalIncomeHeader').innerText = `${totalInc.toLocaleString()} ${state.currency}`;
+    
+    const incList = document.getElementById('incomeList');
+    incList.innerHTML = '';
+    state.incomes.forEach(inc => {
+        let sum = periodTx.filter(t => t.type === 'income' && t.category === inc.name).reduce((s, t) => s + t.amount, 0);
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
+        el.innerHTML = `
+            <button onclick="promptManageItem('income', '${inc.id}', '${inc.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-8 h-8 rounded-full ${inc.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${inc.icon}"></i></div>
+            <div class="text-[10px] text-gray-400 font-medium">${inc.name}</div>
+            <div class="text-xs font-bold font-mono text-gray-100 mt-0.5">${sum.toLocaleString()}</div>
+        `;
+        incList.appendChild(el);
+    });
+
+    let addIncBtn = document.createElement('button');
+    addIncBtn.onclick = () => {
+        let name = prompt("Название источника дохода:");
+        if (name) {
+            state.incomes.push({ id: 'inc_' + Date.now(), name, icon: 'fa-money-bill-wave', color: 'bg-emerald-500/20 text-emerald-400' });
+            renderUI();
+        }
     };
-    if (file) {
-      if (file.size > 1_500_000) { toastMessage("Изображение должно быть меньше 1,5 МБ."); return; }
-      const reader = new FileReader(); reader.onload = () => addGoal(reader.result); reader.readAsDataURL(file);
-    } else addGoal("");
-  });
-  $("#goalList").addEventListener("click", e => {
-    const contribute = e.target.closest("[data-contribute]");
-    const edit = e.target.closest("[data-edit-goal]");
-    const del = e.target.closest("[data-delete-goal]");
-    if (contribute) {
-      const goal = data.goals.find(g=>g.id===contribute.dataset.contribute);
-      if (goal) { goal.saved = Math.min(Number(goal.target), Number(goal.saved)+500); render(); }
-    } else if (edit) {
-      const goal = data.goals.find(g=>g.id===edit.dataset.editGoal);
-      if (goal) {
-        const newName = prompt("Название цели:", goal.name);
-        if (newName === null) return;
-        const newTarget = prompt("Стоимость цели в сомах:", goal.target);
-        if (newTarget === null) return;
-        const newSaved = prompt("Сколько уже накоплено:", goal.saved);
-        if (newSaved === null) return;
-        if (newName.trim() && Number(newTarget)>0 && Number(newSaved)>=0) {
-          goal.name=newName.trim();goal.target=Number(newTarget);goal.saved=Math.min(Number(newSaved),goal.target);render();
-        } else toastMessage("Проверь введённые значения.");
-      }
-    } else if (del && confirm("Удалить эту цель?")) {
-      data.goals = data.goals.filter(g=>g.id!==del.dataset.deleteGoal); render();
+    addIncBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
+    addIncBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
+    incList.appendChild(addIncBtn);
+
+    // 2. КОШЕЛЬКИ
+    let totalWallets = 0;
+    const wallList = document.getElementById('walletList');
+    wallList.innerHTML = '';
+    
+    state.wallets.forEach(w => {
+        let wExpenses = state.transactions.filter(t => t.walletId === w.id && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+        let wIncomes = state.transactions.filter(t => t.walletId === w.id && t.type === 'income').reduce((s, t) => s + t.amount, 0);
+        let currentBal = w.balance + wIncomes - wExpenses;
+        totalWallets += currentBal;
+
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl flex items-center justify-between relative';
+        el.innerHTML = `
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full ${w.color} flex items-center justify-center text-sm"><i class="fa-solid ${w.icon}"></i></div>
+                <div>
+                    <div class="text-[10px] text-gray-400">${w.name}</div>
+                    <div class="text-xs font-bold font-mono text-gray-100">${currentBal.toLocaleString()} ${state.currency}</div>
+                </div>
+            </div>
+            <button onclick="promptManageItem('wallet', '${w.id}', '${w.name}')" class="text-gray-600 hover:text-rose-400 text-xs px-1"><i class="fa-solid fa-trash"></i></button>
+        `;
+        wallList.appendChild(el);
+    });
+    document.getElementById('totalWalletHeader').innerText = `${totalWallets.toLocaleString()} ${state.currency}`;
+
+    let addWallBtn = document.createElement('button');
+    addWallBtn.onclick = () => {
+        let name = prompt("Название кошелька:");
+        if (name) {
+            let bal = parseFloat(prompt("Начальный баланс (сом):") || 0);
+            state.wallets.push({ id: 'w_' + Date.now(), name, icon: 'fa-credit-card', color: 'bg-cyan-500/20 text-cyan-400', balance: bal });
+            renderUI();
+        }
+    };
+    addWallBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-3 rounded-2xl flex items-center justify-center gap-2 text-gray-500 hover:text-gray-300 text-xs';
+    addWallBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span>Добавить кошелек</span>`;
+    wallList.appendChild(addWallBtn);
+
+    // 3. РАСХОДЫ
+    let totalExp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    document.getElementById('totalExpenseHeader').innerText = `${totalExp.toLocaleString()} ${state.currency}`;
+
+    const catGrid = document.getElementById('categoryGrid');
+    catGrid.innerHTML = '';
+    state.categories.forEach(cat => {
+        let sum = periodTx.filter(t => t.type === 'expense' && t.category === cat.name).reduce((s, t) => s + t.amount, 0);
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
+        el.innerHTML = `
+            <button onclick="promptManageItem('category', '${cat.id}', '${cat.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-8 h-8 rounded-full ${cat.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${cat.icon}"></i></div>
+            <div class="text-[10px] text-gray-400 font-medium">${cat.name}</div>
+            <div class="text-xs font-bold font-mono text-rose-400 mt-0.5">${sum.toLocaleString()}</div>
+        `;
+        catGrid.appendChild(el);
+    });
+
+    let addCatBtn = document.createElement('button');
+    addCatBtn.onclick = () => {
+        let name = prompt("Название категории расходов:");
+        if (name) {
+            state.categories.push({ id: 'c_' + Date.now(), name, icon: 'fa-tag', color: 'bg-rose-500/20 text-rose-400' });
+            renderUI();
+        }
+    };
+    addCatBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
+    addCatBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
+    catGrid.appendChild(addCatBtn);
+}
+
+// МОДУЛЬ КРЕДИТОВ И ДОЛГОВ
+function renderLoans() {
+    const list = document.getElementById('loansList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!state.loans || state.loans.length === 0) {
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет долгов. Чистый горизонт!</div>';
+        return;
     }
-  });
-  $("#weightForm").addEventListener("submit", e => {
+
+    state.loans.forEach(l => {
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl flex justify-between items-center text-xs';
+        el.innerHTML = `
+            <div>
+                <div class="font-bold text-gray-200">${l.name}</div>
+                <div class="text-[10px] text-gray-400">Остаток долга: <b class="text-rose-400 font-mono">${l.remaining.toLocaleString()} ${state.currency}</b> (платеж: ${l.monthlyPayment.toLocaleString()}/мес)</div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="payLoan('${l.id}')" class="bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-rose-500/30">Оплатить</button>
+                <button onclick="promptManageItem('loan', '${l.id}', '${l.name}')" class="text-gray-600 hover:text-rose-400 px-1"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        `;
+        list.appendChild(el);
+    });
+}
+
+function addNewLoan() {
+    let name = prompt("Название кредита или долга:");
+    if (!name) return;
+    let totalAmount = parseFloat(prompt("Общая сумма долга (сом):") || 0);
+    let monthlyPayment = parseFloat(prompt("Ежемесячный платеж (сом):") || 0);
+
+    state.loans.push({
+        id: 'l_' + Date.now(),
+        name,
+        totalAmount,
+        monthlyPayment,
+        remaining: totalAmount
+    });
+    renderUI();
+}
+
+function payLoan(loanId) {
+    let loan = state.loans.find(l => l.id === loanId);
+    if (!loan) return;
+    let paySum = parseFloat(prompt(`Сумма взноса по долгу "${loan.name}" (сом):`, loan.monthlyPayment) || 0);
+    if (!paySum) return;
+
+    loan.remaining = Math.max(0, loan.remaining - paySum);
+    
+    state.transactions.push({
+        id: Date.now(),
+        type: 'expense',
+        amount: paySum,
+        title: `Платеж по долгу: ${loan.name}`,
+        walletId: state.wallets[0]?.id || 'cash',
+        category: '💳 Долги',
+        date: getPeriodPrefix(),
+        fullDate: new Date().toISOString().slice(0, 10)
+    });
+
+    if (loan.remaining === 0) {
+        state.loans = state.loans.filter(l => l.id !== loanId);
+        alert(`🎉 Поздравляем! Кредит "${loan.name}" полностью погашен!`);
+    }
+    renderUI();
+}
+
+// МОДУЛЬ ЦЕЛЕЙ
+function renderGoals() {
+    const list = document.getElementById('goalsList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (state.goals.length === 0) {
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет целей. Нажми "+ Добавить цель"!</div>';
+        return;
+    }
+
+    state.goals.forEach(g => {
+        let pct = Math.min(100, Math.round((g.saved / g.target) * 100));
+        let left = Math.max(0, g.target - g.saved);
+        let monthsLeft = g.monthlyPledge > 0 ? Math.ceil(left / g.monthlyPledge) : 0;
+
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl space-y-2 text-xs relative';
+        el.innerHTML = `
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-gray-100">${g.name}</span>
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-cyan-400 font-bold">${g.saved.toLocaleString()} / ${g.target.toLocaleString()} ${state.currency}</span>
+                    <button onclick="promptManageItem('goal', '${g.id}', '${g.name}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+            
+            <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden border border-gray-800">
+                <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+
+            <div class="flex justify-between items-center text-[10px] text-gray-400 pt-0.5">
+                <span>Осталось: <b class="text-rose-400 font-mono">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `(~${monthsLeft} мес.)` : ''}</span>
+                <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-cyan-500/30">+ Пополнить</button>
+            </div>
+        `;
+        list.appendChild(el);
+    });
+}
+
+function addNewGoal() {
+    let name = prompt("Название цели (например: Smart Watch):");
+    if (!name) return;
+    let target = parseFloat(prompt("Стоимость цели (сом):") || 0);
+    if (!target) return;
+    let pledge = parseFloat(prompt("Сколько откладывать в месяц (сом):") || 2000);
+
+    state.goals.push({ id: 'g_' + Date.now(), name, target, saved: 0, monthlyPledge: pledge });
+    renderUI();
+}
+
+function depositToGoal(goalId) {
+    let amount = parseFloat(prompt("Сколько отложить в копилку (сом)?") || 0);
+    if (!amount) return;
+
+    let goal = state.goals.find(g => g.id === goalId);
+    if (goal) {
+        goal.saved += amount;
+        state.transactions.push({
+            id: Date.now(),
+            type: 'expense',
+            amount: amount,
+            title: `Копилка: ${goal.name}`,
+            walletId: state.wallets[0]?.id || 'cash',
+            category: '🎯 Цели',
+            date: getPeriodPrefix(),
+            fullDate: new Date().toISOString().slice(0, 10)
+        });
+        renderUI();
+    }
+}
+
+// ГОДОВОЙ ФИНАНСОВЫЙ ПРОГНОЗ
+function renderForecast() {
+    const period = getPeriodPrefix();
+    const periodTx = state.transactions.filter(t => t.date.startsWith(period));
+
+    let inc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    let exp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    
+    let monthlySavings = Math.max(0, inc - exp);
+    let yearForecast = monthlySavings * 12;
+
+    document.getElementById('forecastYearTotal').innerText = `${yearForecast.toLocaleString()} ${state.currency}`;
+    document.getElementById('forecastDescText').innerText = `При остатке ${monthlySavings.toLocaleString()} сом в месяц, за 12 месяцев у вас зафиксируется ${yearForecast.toLocaleString()} ${state.currency}.`;
+}
+
+// УПРАВЛЕНИЕ И УДАЛЕНИЕ
+function promptManageItem(type, id, name) {
+    itemToDelete = { type, id };
+    document.getElementById('manageItemTitle').innerText = `Удалить "${name}"?`;
+    document.getElementById('manageItemModal').classList.remove('hidden');
+}
+
+function closeManageModal() {
+    document.getElementById('manageItemModal').classList.add('hidden');
+    itemToDelete = null;
+}
+
+function confirmDeleteItem() {
+    if (!itemToDelete) return;
+    if (itemToDelete.type === 'income') state.incomes = state.incomes.filter(i => i.id !== itemToDelete.id);
+    else if (itemToDelete.type === 'wallet') state.wallets = state.wallets.filter(w => w.id !== itemToDelete.id);
+    else if (itemToDelete.type === 'category') state.categories = state.categories.filter(c => c.id !== itemToDelete.id);
+    else if (itemToDelete.type === 'goal') state.goals = state.goals.filter(g => g.id !== itemToDelete.id);
+    else if (itemToDelete.type === 'loan') state.loans = state.loans.filter(l => l.id !== itemToDelete.id);
+    closeManageModal();
+    renderUI();
+}
+
+function renderHistory() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    const period = getPeriodPrefix();
+    const periodTx = state.transactions.filter(t => t.date.startsWith(period));
+
+    let inc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    let exp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    document.getElementById('historySaldo').innerText = `${(inc - exp).toLocaleString()} ${state.currency}`;
+
+    if (periodTx.length === 0) {
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-8">За этот период нет записей</div>';
+        return;
+    }
+
+    periodTx.slice().reverse().forEach(t => {
+        let isInc = t.type === 'income';
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/80 border border-gray-800 p-3 rounded-2xl flex items-center justify-between text-xs';
+        el.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded-lg ${isInc ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'} flex items-center justify-center font-bold text-xs">
+                    ${isInc ? '+' : '-'}
+                </div>
+                <div>
+                    <div class="font-bold text-gray-200">${t.title}</div>
+                    <div class="text-[10px] text-gray-400">${t.category} • ${t.fullDate}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="font-mono font-bold ${isInc ? 'text-emerald-400' : 'text-rose-400'}">
+                    ${isInc ? '+' : '-'}${t.amount.toLocaleString()} ${state.currency}
+                </span>
+                <button onclick="deleteTx(${t.id})" class="text-gray-500 hover:text-rose-400"><i class="fa-solid fa-trash text-xs"></i></button>
+            </div>
+        `;
+        list.appendChild(el);
+    });
+}
+
+function deleteTx(id) {
+    state.transactions = state.transactions.filter(t => t.id !== id);
+    renderUI();
+}
+
+function openAddTransactionModal() {
+    const wSelect = document.getElementById('txWallet');
+    wSelect.innerHTML = '';
+    state.wallets.forEach(w => { wSelect.innerHTML += `<option value="${w.id}">${w.name}</option>`; });
+    setTxType('expense');
+    document.getElementById('addModal').classList.remove('hidden');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.add('hidden');
+}
+
+function setTxType(type) {
+    currentTxType = type;
+    const btnExp = document.getElementById('txTypeExp');
+    const btnInc = document.getElementById('txTypeInc');
+    const cSelect = document.getElementById('txCategory');
+    cSelect.innerHTML = '';
+
+    if (type === 'expense') {
+        btnExp.className = 'flex-1 py-1 rounded-lg bg-rose-500 text-white font-extrabold';
+        btnInc.className = 'flex-1 py-1 rounded-lg text-gray-400';
+        state.categories.forEach(c => cSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`);
+    } else {
+        btnInc.className = 'flex-1 py-1 rounded-lg bg-emerald-500 text-white font-extrabold';
+        btnExp.className = 'flex-1 py-1 rounded-lg text-gray-400';
+        state.incomes.forEach(i => cSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`);
+    }
+}
+
+function handleSaveTransaction(e) {
     e.preventDefault();
-    data.weight = Number($("#weightInput").value)||62;
-    data.weightGoal = Number($("#weightGoalInput").value)||70;
-    render(); toastMessage("Данные о весе обновлены.");
-  });
-  $("#waterGlasses").addEventListener("click", e => {
-    const glass = e.target.closest("[data-water]"); if (!glass) return;
-    data.water = Number(glass.dataset.water); render();
-  });
-  $("#addWater").addEventListener("click", () => { data.water = Math.min(8, Number(data.water)+1); render(); });
-  $("#calorieForm").addEventListener("submit", e => {
-    e.preventDefault(); data.calories += Math.max(0,Number($("#calorieInput").value)||0); $("#calorieInput").value=""; render();
-  });
-  $("#auditButton").addEventListener("click", () => {
-    const spent = totalExpenses(), balance = monthBalance();
-    const sorted = Object.entries(categories).map(([name,cat])=>({name,total:expensesThisMonth().filter(e=>e.category===name).reduce((s,e)=>s+Number(e.amount),0)})).sort((a,b)=>b.total-a.total);
-    const biggest = sorted[0];
-    let intro = balance < 0 ? "Внимание: сейчас расходы вместе с кредитом превышают доход. В первую очередь останови необязательные покупки." : balance < currentIncome()*.2 ? "Запас небольшой. Постарайся ограничить импульсивные покупки и сначала отложить небольшую сумму." : "Баланс выглядит устойчиво. Сохрани этот ритм и регулярно пополняй накопления.";
-    const list = sorted.filter(x=>x.total>0).slice(0,3).map(x=>`<li><b>${x.name}</b>: ${money(x.total)}</li>`).join("") || "<li>Пока нет записанных расходов за этот месяц.</li>";
-    $("#auditResult").innerHTML = `<b>Ночной аудит</b><p>${intro}</p><p>Расходы за месяц: <b>${money(spent)}</b>. Кредит: <b>${money(data.credit)}</b>.</p><p>Категории с наибольшими расходами:</p><ul>${list}</ul><p>${biggest.total ? `Проверь, можно ли сократить категорию «${biggest.name}» без ущерба для важных потребностей.` : "Добавляй траты по мере их появления, чтобы советы стали точнее."}</p>`;
-    $("#auditResult").classList.remove("hidden");
-  });
-  function assistantReply(message) {
-    const q = message.toLowerCase();
-    if (/баланс|деньг|финанс|сколько/.test(q)) return `Твой расчётный баланс за месяц — ${money(monthBalance())}. Доход: ${money(currentIncome())}, кредит: ${money(data.credit)}, записанные расходы: ${money(totalExpenses())}.`;
-    if (/эконом|сэконом|расход|трат/.test(q)) return "Попробуй правило 24 часов для необязательных покупок, планируй продукты заранее и записывай расходы сразу. Нельзя оценить траты, которые ещё не внесены в систему.";
-    if (/цель|копить|накоп/.test(q)) return data.goals.length ? `Сейчас у тебя ${data.goals.length} целей. Уже накоплено ${money(totalSaved())}. Выбери одну главную цель и пополняй её регулярно.` : "Создай первую цель накопления и укажи стоимость — так будет проще двигаться по плану.";
-    if (/вес|калор|вода|здоров/.test(q)) return `Сегодня: вес ${data.weight} кг, вода ${data.water}/8 стаканов, калории ${data.calories} ккал. Иди постепенно и ориентируйся на самочувствие, а не только на цифры.`;
-    return "Я помогу следить за балансом, расходами, накоплениями и привычками. Спроси, например: «Какой у меня баланс?» или «Как сократить расходы?»";
-  }
-  function sendChat() {
-    const input = $("#chatInput"), message = input.value.trim(); if (!message) return;
-    $("#chatReply").textContent = assistantReply(message); $("#chatReply").classList.remove("hidden"); input.value="";
-  }
-  $("#chatSend").addEventListener("click", sendChat);
-  $("#chatInput").addEventListener("keydown", e => { if(e.key==="Enter") sendChat(); });
-  $("#voiceButton").addEventListener("click", () => {
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) { toastMessage("Голосовой ввод не поддерживается этим браузером. Попробуй Chrome."); return; }
-    const recognition = new Recognition(); recognition.lang="ru-RU"; recognition.interimResults=false;
-    recognition.onresult = event => { $("#chatInput").value = event.results[0][0].transcript; sendChat(); };
-    recognition.onerror = () => toastMessage("Не удалось распознать речь. Проверь доступ к микрофону.");
-    recognition.start();
-  });
-  $("#resetDemo").addEventListener("click", () => {
-    if (!confirm("Сбросить все локальные данные и вернуться к демо-значениям?")) return;
-    data = defaultData(); render(); toastMessage("Демо-данные восстановлены.");
-  });
-  function toastMessage(message) {
-    let toast = $("#toast");
-    if (!toast) { toast=document.createElement("div");toast.id="toast";toast.style.cssText="position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:20;background:#20263a;border:1px solid #ffffff1b;color:#f4f5ff;padding:12px 17px;border-radius:12px;font-size:12px;box-shadow:0 10px 35px #0006;max-width:calc(100% - 28px);text-align:center";document.body.appendChild(toast); }
-    toast.textContent=message; toast.style.opacity="1";
-    clearTimeout(toastMessage.timer); toastMessage.timer=setTimeout(()=>{toast.style.opacity="0";},2400);
-  }
-  setGreeting(); render();
-})();
+    const amount = parseFloat(document.getElementById('txAmount').value);
+    const title = document.getElementById('txTitle').value;
+    const walletId = document.getElementById('txWallet').value;
+    const category = document.getElementById('txCategory').value;
+
+    if (!amount || !title) return;
+
+    state.transactions.push({
+        id: Date.now(),
+        type: currentTxType,
+        amount,
+        title,
+        walletId,
+        category,
+        date: getPeriodPrefix(),
+        fullDate: new Date().toISOString().slice(0, 10)
+    });
+
+    document.getElementById('txAmount').value = '';
+    document.getElementById('txTitle').value = '';
+    closeAddModal();
+    renderUI();
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('text-cyan-400'));
+    document.getElementById(`nav-${tabName}`).classList.add('text-cyan-400');
+}
+
+function initChart() {
+    const canvas = document.getElementById('reportChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    reportChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: ['#06b6d4', '#f43f5e', '#3b82f6', '#eab308', '#a855f7', '#10b981', '#f97316'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+    });
+}
+
+function setReportType(type) {
+    currentReportType = type;
+    document.getElementById('repBtnDay').className = type === 'day' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    document.getElementById('repBtnMonth').className = type === 'month' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    document.getElementById('repBtnYear').className = type === 'year' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    renderReport();
+}
+
+// ТОЧНЫЙ ОТЧЕТ (ДЕНЬ / МЕСЯЦ / ГОД)
+function renderReport() {
+    if (!reportChartInstance) return;
+
+    let targetTx = [];
+    let title = '';
+
+    if (currentReportType === 'day') {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        targetTx = state.transactions.filter(t => t.type === 'expense' && t.fullDate === todayStr);
+        title = `Анализ за сегодня: ${todayStr}`;
+    } else if (currentReportType === 'month') {
+        const period = getPeriodPrefix();
+        targetTx = state.transactions.filter(t => t.type === 'expense' && t.date.startsWith(period));
+        title = `Анализ за месяц: ${document.getElementById('currentPeriodLabel').innerText}`;
+    } else if (currentReportType === 'year') {
+        const year = state.currentDate.getFullYear().toString();
+        targetTx = state.transactions.filter(t => t.type === 'expense' && t.date.startsWith(year));
+        title = `Полный анализ за весь ${year} год`;
+    }
+
+    document.getElementById('reportTitleHeader').innerText = title;
+
+    const catMap = {};
+    targetTx.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
+
+    const labels = Object.keys(catMap);
+    const values = Object.values(catMap);
+
+    reportChartInstance.data.labels = labels.length ? labels : ['Нет трат'];
+    reportChartInstance.data.datasets[0].data = values.length ? values : [1];
+    reportChartInstance.update();
+
+    const bd = document.getElementById('reportBreakdown');
+    bd.innerHTML = '';
+    let total = values.reduce((a, b) => a + b, 0);
+
+    labels.forEach((cat, idx) => {
+        let val = values[idx];
+        let pct = total > 0 ? Math.round((val / total) * 100) : 0;
+        let color = reportChartInstance.data.datasets[0].backgroundColor[idx % 7];
+        bd.innerHTML += `
+            <div class="flex justify-between items-center text-gray-300">
+                <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" style="background-color:${color}"></span><span>${cat}</span></div>
+                <div class="font-mono font-bold">${val.toLocaleString()} ${state.currency} (${pct}%)</div>
+            </div>
+        `;
+    });
+}
+
+function calcExchange() {
+    let rate = parseFloat(document.getElementById('usdRate').value) || 87.5;
+    let usd = parseFloat(document.getElementById('calcUsdInput').value) || 0;
+    let kgs = Math.round(usd * rate);
+    document.getElementById('calcResultDisplay').innerText = `${usd} $ = ${kgs.toLocaleString()} сом`;
+}
+
+function openNightAuditModal() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayTx = state.transactions.filter(t => t.type === 'expense' && t.fullDate === todayStr);
+    let todaySum = todayTx.reduce((s, t) => s + t.amount, 0);
+
+    const auditEl = document.getElementById('auditContent');
+    auditEl.innerHTML = `
+        <div>• Потрачено за сегодня: <b class="text-rose-400 font-mono">${todaySum.toLocaleString()} ${state.currency}</b></div>
+        <div>• Дневной лимит: <b class="text-cyan-400 font-mono">${state.dailyLimit.toLocaleString()} ${state.currency}</b></div>
+        <div class="pt-2 border-t border-gray-800 text-emerald-400 font-semibold">
+            ${todaySum <= state.dailyLimit ? '🟢 Отличный день! Ты удержался в рамках дневного бюджета.' : '🔴 Внимание! Дневной лимит превышен.'}
+        </div>
+    `;
+    document.getElementById('nightAuditModal').classList.remove('hidden');
+}
+
+function closeNightAuditModal() {
+    document.getElementById('nightAuditModal').classList.add('hidden');
+}
+
+function updateSettings() {
+    state.currency = document.getElementById('settingCurrency').value;
+    state.dailyLimit = parseFloat(document.getElementById('settingDailyLimit').value) || 2500;
+    renderUI();
+}
+
+function resetData() {
+    if (confirm("Сбросить все данные до чистых начальных значений?")) {
+        localStorage.removeItem('mta_247_v8_pro');
+        location.reload();
+    }
+}
