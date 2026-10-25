@@ -1,4 +1,7 @@
-// МТА 24/7 — Учет Финансов (Прямой доступ без паролей)
+// МТА 24/7 — Учет Финансов (JSONbin.io облако + файл-бэкап)
+
+const JSONBIN_BIN_ID = '6adda26bff5d1605389b700';
+const JSONBIN_API_KEY = '$2a$10$Tfq85Wevw11TANV9oj.eq.HPLWTDwAj65dyR7oLjUxPXRzem3m8pa';
 
 let state = {
     currentDate: new Date(),
@@ -34,7 +37,7 @@ let currentReportType = 'month';
 let reportChartInstance = null;
 let itemToDelete = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Скрываем окно авторизации навсегда
     const authEl = document.getElementById('authScreen');
     if (authEl) authEl.classList.add('hidden');
@@ -43,12 +46,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (nameDisp) nameDisp.innerText = '👤 МТА 24/7 Личный';
 
     autoSetCurrentMonth();
-    loadState();
+    await loadState(); // Загружаем из JSONbin.io с фоллбеком на localStorage
     renderUI();
     initChart();
 });
 
-function loadState() {
+// Загрузка данных из облака JSONbin.io
+async function loadState() {
+    try {
+        let response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        });
+        if (response.ok) {
+            let data = await response.json();
+            if (data && data.record) {
+                state = { ...state, ...data.record };
+                state.currentDate = new Date();
+                return;
+            }
+        }
+    } catch (e) {
+        console.log('Облако недоступно, читаем из локального кеша');
+    }
+    
+    // Если облако не ответило, берем из localStorage
     const saved = localStorage.getItem('mta_247_v10_direct');
     if (saved) {
         try {
@@ -59,8 +80,35 @@ function loadState() {
     }
 }
 
-function saveState() {
+// Сохранение в облако JSONbin.io + дубликаты в localStorage
+async function saveState() {
+    // Локальный кеш для мгновенной работы
     localStorage.setItem('mta_247_v10_direct', JSON.stringify(state));
+
+    // Фоновая отправка в JSONbin.io
+    try {
+        await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': JSONBIN_API_KEY
+            },
+            body: JSON.stringify(state)
+        });
+    } catch (e) {
+        console.log('Ошибка сохранения в облако');
+    }
+}
+
+// Функция для скачивания резервной копии в файл
+function exportBackupFile() {
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+    let dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", `mta_247_backup_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(dlAnchorElem);
+    dlAnchorElem.click();
+    dlAnchorElem.remove();
 }
 
 function autoSetCurrentMonth() {
