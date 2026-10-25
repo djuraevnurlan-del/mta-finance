@@ -19,20 +19,17 @@
     <header class="sticky top-0 z-40 backdrop-blur-xl bg-gray-950/90 border-b border-gray-800/80 px-4 py-3">
         <div class="max-w-md mx-auto flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg glow-cyan">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
                     <i class="fa-solid fa-mountain text-lg"></i>
                 </div>
                 <div>
                     <h1 class="font-black text-lg tracking-wider text-gray-100">МТА 24/7</h1>
-                    <div id="userNameDisplay" class="text-[9px] text-cyan-400 font-bold">👤 Личный Кабинет (Облако Active)</div>
+                    <div class="text-[9px] text-cyan-400 font-bold">👤 Облако Supabase Active</div>
                 </div>
             </div>
 
-            <!-- ВЫБОР МЕСЯЦА -->
             <div class="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-xl px-2 py-1">
-                <button onclick="changePeriod(-1)" class="text-gray-400 hover:text-white px-1.5 py-0.5"><i class="fa-solid fa-chevron-left text-xs"></i></button>
                 <span id="currentPeriodLabel" class="text-xs font-bold text-cyan-400 px-1 font-mono">ОКТЯБРЬ 2026</span>
-                <button onclick="changePeriod(1)" class="text-gray-400 hover:text-white px-1.5 py-0.5"><i class="fa-solid fa-chevron-right text-xs"></i></button>
             </div>
         </div>
     </header>
@@ -58,7 +55,7 @@
                     <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Мои Кошельки</span>
                     <span id="totalWalletHeader" class="text-sm font-black font-mono text-cyan-400">0 сом</span>
                 </div>
-                <div id="walletList" class="grid grid-cols-2 gap-2"></div>
+                <div id="walletList" class="grid grid-cols-3 gap-2"></div>
             </section>
 
             <!-- РАСХОДЫ ПО КАТЕГОРИЯМ -->
@@ -67,44 +64,30 @@
                     <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Расходы за месяц</span>
                     <span id="totalExpenseHeader" class="text-sm font-black font-mono text-rose-400">0 сом</span>
                 </div>
-                <div id="categoryGrid" class="grid grid-cols-3 gap-2"></div>
+                <div id="categoryGrid" class="grid grid-cols-2 gap-2"></div>
             </section>
-
-            <!-- ВЕЧЕРНИЙ ЧЕК-ИН -->
-            <button onclick="openNightAuditModal()" class="w-full bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-cyan-900/40 border border-indigo-500/30 hover:border-cyan-400/50 p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all shadow-lg active:scale-98">
-                <div class="flex items-center gap-2.5 text-indigo-300">
-                    <i class="fa-solid fa-moon text-amber-400 text-sm"></i>
-                    <span>Вечерний Чек-ин Дня</span>
-                </div>
-                <span class="text-cyan-400 font-mono">Завершить день →</span>
-            </button>
         </div>
 
         <!-- ВКЛАДКА 2: ИСТОРИЯ -->
         <div id="tab-history" class="tab-content hidden space-y-3">
             <div class="flex justify-between items-center bg-gray-900/80 p-3 rounded-2xl border border-gray-800">
-                <span class="text-xs font-bold text-gray-400">Итоговый остаток месяца:</span>
-                <span id="historySaldo" class="text-sm font-black font-mono text-cyan-400">0 сом</span>
+                <span class="text-xs font-bold text-gray-400">Все операции:</span>
             </div>
             <div id="historyList" class="space-y-2 max-h-[500px] overflow-y-auto"></div>
         </div>
 
-        <!-- ВКЛАДКА 3: OTЧЕТ -->
+        <!-- ВКЛАДКА 3: ОТЧЕТ -->
         <div id="tab-reports" class="tab-content hidden space-y-4">
-            <div class="bg-gray-900/90 p-4 rounded-2xl border border-gray-800 space-y-3">
-                <div class="text-xs font-bold text-cyan-400 text-center font-mono">Анализ расходов</div>
-                <div class="h-48 relative">
-                    <canvas id="reportChart"></canvas>
-                </div>
+            <div class="bg-gray-900/90 p-4 rounded-2xl border border-gray-800 text-center text-xs text-gray-400">
+                Облачная синхронизация активна 24/7.
             </div>
         </div>
 
         <!-- ВКЛАДКА 4: НАСТРОЙКИ -->
         <div id="tab-settings" class="tab-content hidden space-y-4">
-            <div class="bg-gray-900/90 p-4 rounded-2xl border border-gray-800 space-y-4 text-xs">
-                <h3 class="font-bold text-sm text-gray-200 border-b border-gray-800 pb-2">Статус Подключения</h3>
-                <p class="text-emerald-400 font-bold">🟢 База данных Supabase подключена 24/7</p>
-                <p class="text-gray-400 text-[11px]">Все данные автоматически синхронизируются в облако.</p>
+            <div class="bg-gray-900/90 p-4 rounded-2xl border border-gray-800 space-y-2 text-xs">
+                <h3 class="font-bold text-sm text-gray-200">База данных</h3>
+                <p class="text-emerald-400 font-bold">🟢 Supabase Подключен</p>
             </div>
         </div>
 
@@ -122,7 +105,7 @@
                 <span>История</span>
             </button>
 
-            <button onclick="openAddTransactionModal()" class="w-12 h-12 -mt-5 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 text-white text-xl flex items-center justify-center shadow-xl glow-cyan active:scale-90 transition-all border-2 border-black">
+            <button onclick="openAddTransactionModal()" class="w-12 h-12 -mt-5 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 text-white text-xl flex items-center justify-center shadow-xl active:scale-90 transition-all border-2 border-black">
                 <i class="fa-solid fa-plus"></i>
             </button>
 
@@ -151,26 +134,26 @@
             <form onsubmit="handleSaveTransaction(event)" class="space-y-3 text-xs">
                 <div>
                     <label class="text-gray-400 block mb-1">Сумма (сом):</label>
-                    <input type="number" id="txAmount" placeholder="0" required autofocus class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-lg font-mono text-cyan-400 font-bold focus:outline-none focus:border-cyan-500">
+                    <input type="number" id="txAmount" placeholder="0" required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-lg font-mono text-cyan-400 font-bold focus:outline-none focus:border-cyan-500">
                 </div>
 
                 <div>
-                    <label class="text-gray-400 block mb-1">Название / Примечание:</label>
-                    <input type="text" id="txTitle" placeholder="Например: Продукты, Зарплата" required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-gray-200 focus:outline-none focus:border-cyan-500">
+                    <label class="text-gray-400 block mb-1">Название:</label>
+                    <input type="text" id="txTitle" placeholder="Продукты, Обед..." required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-gray-200 focus:outline-none">
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="text-gray-400 block mb-1">Кошелек:</label>
-                        <select id="txWallet" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-gray-200 font-semibold focus:outline-none">
+                        <select id="txWallet" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-gray-200 font-semibold">
                             <option value="Оптима">Оптима</option>
-                            <option value="Наличные">Наличные</option>
                             <option value="MBank">MBank</option>
+                            <option value="Наличные">Наличные</option>
                         </select>
                     </div>
                     <div>
                         <label class="text-gray-400 block mb-1">Категория:</label>
-                        <select id="txCategory" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-gray-200 font-semibold focus:outline-none">
+                        <select id="txCategory" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-gray-200 font-semibold">
                             <option value="Еда & Продукты">Еда & Продукты</option>
                             <option value="Транспорт">Транспорт</option>
                             <option value="Жилье & Комуналка">Жилье & Комуналка</option>
