@@ -3,25 +3,22 @@ const SUPABASE_URL = 'https://syihsecugrnygqbzfxck.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Lr8LOltfXwDhNE6EizDVeA_BqRKidPK';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Начальные данные кошельков и категорий
 const DEFAULT_WALLETS = [
-    { name: 'Оптима', balance: 0, icon: 'fa-credit-card', color: 'text-cyan-400' },
-    { name: 'MBank', balance: 0, icon: 'fa-mobile-screen', color: 'text-emerald-400' },
-    { name: 'Наличные', balance: 0, icon: 'fa-wallet', color: 'text-amber-400' }
+    { name: 'Оптима', icon: 'fa-credit-card', color: 'text-cyan-400' },
+    { name: 'MBank', icon: 'fa-mobile-screen', color: 'text-emerald-400' },
+    { name: 'Наличные', icon: 'fa-wallet', color: 'text-amber-400' }
 ];
 
 const DEFAULT_CATEGORIES = [
-    { name: 'Еда & Продукты', amount: 0, icon: 'fa-utensils', color: 'text-rose-400' },
-    { name: 'Транспорт', amount: 0, icon: 'fa-car', color: 'text-blue-400' },
-    { name: 'Жилье & Комуналка', amount: 0, icon: 'fa-house', color: 'text-purple-400' },
-    { name: 'Развлечения', amount: 0, icon: 'fa-gamepad', color: 'text-pink-400' },
-    { name: 'Зарплата', amount: 0, icon: 'fa-money-bill-wave', color: 'text-emerald-400' }
+    { name: 'Еда & Продукты', icon: 'fa-utensils', color: 'text-rose-400' },
+    { name: 'Транспорт', icon: 'fa-car', color: 'text-blue-400' },
+    { name: 'Жилье & Комуналка', icon: 'fa-house', color: 'text-purple-400' },
+    { name: 'Развлечения', icon: 'fa-gamepad', color: 'text-pink-400' }
 ];
 
 let transactions = [];
 let currentType = 'expense';
 
-// Unique Device / User ID for isolation
 let userId = localStorage.getItem('mta_user_id');
 if (!userId) {
     userId = 'user_' + Math.random().toString(36).substring(2, 9);
@@ -41,7 +38,6 @@ async function loadTransactionsFromCloud() {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-
         transactions = data || [];
         renderUI();
     } catch (err) {
@@ -91,10 +87,8 @@ async function handleSaveTransaction(e) {
 function renderUI() {
     let totalInc = 0;
     let totalExp = 0;
-
-    // Сброс балансов
     let walletBalances = { 'Оптима': 0, 'MBank': 0, 'Наличные': 0 };
-    let categoryExpenses = { 'Еда & Продукты': 0, 'Транспорт': 0, 'Жилье & Комуналка': 0, 'Развлечения': 0, 'Зарплата': 0 };
+    let categoryExpenses = { 'Еда & Продукты': 0, 'Транспорт': 0, 'Жилье & Комуналка': 0, 'Развлечения': 0 };
 
     const historyList = document.getElementById('historyList');
     if (historyList) historyList.innerHTML = '';
@@ -131,7 +125,6 @@ function renderUI() {
         }
     });
 
-    // Отрисовка Кошельков
     const walletList = document.getElementById('walletList');
     if (walletList) {
         walletList.innerHTML = '';
@@ -150,12 +143,10 @@ function renderUI() {
         });
     }
 
-    // Отрисовка Категорий
     const categoryGrid = document.getElementById('categoryGrid');
     if (categoryGrid) {
         categoryGrid.innerHTML = '';
         DEFAULT_CATEGORIES.forEach(c => {
-            if (c.name === 'Зарплата') return;
             const exp = categoryExpenses[c.name] || 0;
             const card = document.createElement('div');
             card.className = 'bg-gray-900/90 p-2.5 rounded-2xl border border-gray-800 space-y-1 text-center shadow-sm';
@@ -168,27 +159,19 @@ function renderUI() {
         });
     }
 
-    // Отрисовка Доходов
     const incomeList = document.getElementById('incomeList');
     if (incomeList) {
         incomeList.innerHTML = `
-            <div class="bg-gray-900/90 p-2.5 rounded-2xl border border-gray-800 text-center space-y-0.5 shadow-sm col-span-3">
-                <div class="text-[10px] font-bold text-gray-400">Зарплата & Доходы</div>
-                <div class="text-xs font-black font-mono text-emerald-400">${totalInc.toLocaleString()} сом</div>
+            <div class="bg-gray-900/90 p-3 rounded-2xl border border-gray-800 text-center space-y-1 shadow-sm col-span-3">
+                <div class="text-[10px] font-bold text-gray-400 uppercase">Зарплата & Доходы</div>
+                <div class="text-sm font-black font-mono text-emerald-400">${totalInc.toLocaleString()} сом</div>
             </div>
         `;
     }
 
-    // Шапка
-    if (document.getElementById('totalIncomeHeader')) {
-        document.getElementById('totalIncomeHeader').innerText = totalInc.toLocaleString() + ' сом';
-    }
-    if (document.getElementById('totalExpenseHeader')) {
-        document.getElementById('totalExpenseHeader').innerText = totalExp.toLocaleString() + ' сом';
-    }
-    if (document.getElementById('totalWalletHeader')) {
-        document.getElementById('totalWalletHeader').innerText = (totalInc - totalExp).toLocaleString() + ' сом';
-    }
+    if (document.getElementById('totalIncomeHeader')) document.getElementById('totalIncomeHeader').innerText = totalInc.toLocaleString() + ' сом';
+    if (document.getElementById('totalExpenseHeader')) document.getElementById('totalExpenseHeader').innerText = totalExp.toLocaleString() + ' сом';
+    if (document.getElementById('totalWalletHeader')) document.getElementById('totalWalletHeader').innerText = (totalInc - totalExp).toLocaleString() + ' сом';
 }
 
 function setTxType(type) {
@@ -234,6 +217,3 @@ function switchTab(tabId) {
         activeNav.classList.add('text-cyan-400');
     }
 }
-
-function changePeriod(delta) {}
-function openNightAuditModal() {}
