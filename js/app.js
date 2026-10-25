@@ -1,4 +1,5 @@
-// МТА 24/7 — Учет Финансов (JSONbin.io облако)
+// МТА 24/7 — Учет Финансов (Полный финальный файл)
+
 const JSONBIN_BIN_ID = '6adda26bff5d1605389b700';
 const JSONBIN_API_KEY = '$2a$10$Tfq85Wevw11TANV9oj.eq.HPLWTDwAj65dyR7oLjUxPXRzem3m8pa';
 
@@ -37,7 +38,6 @@ let reportChartInstance = null;
 let itemToDelete = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Скрываем окно авторизации навсегда
     const authEl = document.getElementById('authScreen');
     if (authEl) authEl.classList.add('hidden');
 
@@ -45,16 +45,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (nameDisp) nameDisp.innerText = '👤 МТА 24/7 Личный';
 
     autoSetCurrentMonth();
-    await loadState(); // Загружаем из JSONbin.io с фоллбеком на localStorage
+    await loadState();
     renderUI();
     initChart();
 });
 
-// Загрузка данных из облака JSONbin.io
+// Загрузка данных из облака JSONbin.io с защитой от пробелов в ключе
 async function loadState() {
     try {
         let response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+            headers: { 
+                'X-Master-Key': JSONBIN_API_KEY.trim() 
+            }
         });
         if (response.ok) {
             let data = await response.json();
@@ -68,7 +70,6 @@ async function loadState() {
         console.log('Облако недоступно, читаем из локального кеша');
     }
     
-    // Если облако не ответило, берем из localStorage
     const saved = localStorage.getItem('mta_247_v10_direct');
     if (saved) {
         try {
@@ -81,16 +82,14 @@ async function loadState() {
 
 // Сохранение в облако JSONbin.io + дубликаты в localStorage
 async function saveState() {
-    // Локальный кеш для мгновенной работы
     localStorage.setItem('mta_247_v10_direct', JSON.stringify(state));
 
-    // Фоновая отправка в JSONbin.io
     try {
         await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': JSONBIN_API_KEY
+                'X-Master-Key': JSONBIN_API_KEY.trim()
             },
             body: JSON.stringify(state)
         });
@@ -99,7 +98,7 @@ async function saveState() {
     }
 }
 
-// Функция для скачивания резервной копии в файл
+// Экспорт бэкапа в файл
 function exportBackupFile() {
     let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
     let dlAnchorElem = document.createElement('a');
@@ -147,7 +146,6 @@ function renderPanel() {
     const period = getPeriodPrefix();
     const periodTx = state.transactions.filter(t => t.date.startsWith(period));
 
-    // Доходы
     let totalInc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     document.getElementById('totalIncomeHeader').innerText = `${totalInc.toLocaleString()} ${state.currency}`;
     
@@ -178,7 +176,6 @@ function renderPanel() {
     addIncBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
     incList.appendChild(addIncBtn);
 
-    // Кошельки
     let totalWallets = 0;
     const wallList = document.getElementById('walletList');
     wallList.innerHTML = '';
@@ -218,7 +215,6 @@ function renderPanel() {
     addWallBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span>Добавить кошелек</span>`;
     wallList.appendChild(addWallBtn);
 
-    // Расходы
     let totalExp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
     document.getElementById('totalExpenseHeader').innerText = `${totalExp.toLocaleString()} ${state.currency}`;
 
