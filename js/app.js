@@ -1,5 +1,4 @@
-// МТА 24/7 — Учет Финансов (JSONbin.io облако + файл-бэкап)
-
+// МТА 24/7 — Учет Финансов (JSONbin.io облако)
 const JSONBIN_BIN_ID = '6adda26bff5d1605389b700';
 const JSONBIN_API_KEY = '$2a$10$Tfq85Wevw11TANV9oj.eq.HPLWTDwAj65dyR7oLjUxPXRzem3m8pa';
 
