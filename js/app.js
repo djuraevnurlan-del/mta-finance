@@ -1,7 +1,9 @@
-// МТА 24/7 — Учет Финансов (Полный финальный файл)
+// МТА 24/7 — Учет Финансов (Supabase + Multi-User)
 
-const JSONBIN_BIN_ID = '6adda26bff5d1605389b700';
-const JSONBIN_API_KEY = '$2a$10$Tfq85Wevw11TANV9oj.eq.HPLWTDwAj65dyR7oLjUxPXRzem3m8pa';
+const SUPABASE_URL = 'https://sztrhecvoyfyuqruujoh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_T_KVCWo75Uh4P45qUs1KMQ_iEHnQYjO'; 
+
+let currentUser = localStorage.getItem('mta_current_user') || 'nurlan';
 
 let state = {
     currentDate: new Date(),
@@ -23,12 +25,8 @@ let state = {
         { id: 'cat5', name: 'Горы', icon: 'fa-mountain', color: 'bg-teal-500/20 text-teal-400' },
         { id: 'cat6', name: 'Развлечения', icon: 'fa-film', color: 'bg-fuchsia-500/20 text-fuchsia-400' }
     ],
-    loans: [
-        { id: 'l1', name: 'Кредит / Долг', totalAmount: 30000, monthlyPayment: 5000, remaining: 20000 }
-    ],
-    goals: [
-        { id: 'g1', name: 'Smart Watch', target: 40000, saved: 12000, monthlyPledge: 5000 }
-    ],
+    loans: [],
+    goals: [],
     transactions: []
 };
 
@@ -41,72 +39,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     const authEl = document.getElementById('authScreen');
     if (authEl) authEl.classList.add('hidden');
 
-    const nameDisp = document.getElementById('userNameDisplay');
-    if (nameDisp) nameDisp.innerText = '👤 МТА 24/7 Личный';
-
     autoSetCurrentMonth();
+    renderUserSwitcher();
     await loadState();
     renderUI();
     initChart();
 });
 
-// Загрузка данных из облака JSONbin.io с защитой от пробелов в ключе
+// Переключатель пользователей (Ты и Брат)
+function renderUserSwitcher() {
+    const nameDisp = document.getElementById('userNameDisplay');
+    if (!nameDisp) return;
+    
+    nameDisp.innerHTML = `
+        <select id="userSelect" onchange="switchUser(this.value)" class="bg-gray-900 text-cyan-400 border border-gray-800 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none">
+            <option value="nurlan" ${currentUser === 'nurlan' ? 'selected' : ''}>👤 Нурлан</option>
+            <option value="brother" ${currentUser === 'brother' ? 'selected' : ''}>👤 Брат (МТА)</option>
+        </select>
+    `;
+}
+
+async function switchUser(newUser) {
+    currentUser = newUser;
+    localStorage.setItem('mta_current_user', currentUser);
+    await loadState();
+    renderUI();
+}
+
+// Загрузка изолированных данных конкретного пользователя из Supabase
 async function loadState() {
     try {
-        let response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-            headers: { 
-                'X-Master-Key': JSONBIN_API_KEY.trim() 
+        let response = await fetch(`${SUPABASE_URL}/rest/v1/user_data?user_id=eq.${currentUser}&select=data`, {
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
             }
         });
         if (response.ok) {
-            let data = await response.json();
-            if (data && data.record) {
-                state = { ...state, ...data.record };
+            let resData = await response.json();
+            if (resData && resData.length > 0 && resData[0].data) {
+                state = { ...state, ...resData[0].data };
                 state.currentDate = new Date();
                 return;
             }
         }
     } catch (e) {
-        console.log('Облако недоступно, читаем из локального кеша');
+        console.log('Загрузка из Supabase не удалась, ищем в локале');
     }
     
-    const saved = localStorage.getItem('mta_247_v10_direct');
+    // Резервная память локально
+    const saved = localStorage.getItem(`mta_247_${currentUser}`);
     if (saved) {
         try {
-            let parsed = JSON.parse(saved);
-            state = { ...state, ...parsed };
+            state = { ...state, ...JSON.parse(saved) };
             state.currentDate = new Date();
         } catch (e) {}
     }
 }
 
-// Сохранение в облако JSONbin.io + дубликаты в localStorage
+// Сохранение данных под тегом user_id в Supabase
 async function saveState() {
-    localStorage.setItem('mta_247_v10_direct', JSON.stringify(state));
+    localStorage.setItem(`mta_247_${currentUser}`, JSON.stringify(state));
 
     try {
-        await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-            method: 'PUT',
+        await fetch(`${SUPABASE_URL}/rest/v1/user_data`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': JSONBIN_API_KEY.trim()
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Prefer': 'resolution=merge-duplicates'
             },
-            body: JSON.stringify(state)
+            body: JSON.stringify({
+                user_id: currentUser,
+                data: state,
+                updated_at: new Date().toISOString()
+            })
         });
     } catch (e) {
-        console.log('Ошибка сохранения в облако');
+        console.log('Ошибка сохранения в Supabase');
     }
-}
-
-// Экспорт бэкапа в файл
-function exportBackupFile() {
-    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
-    let dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `mta_247_backup_${new Date().toISOString().slice(0,10)}.json`);
-    document.body.appendChild(dlAnchorElem);
-    dlAnchorElem.click();
-    dlAnchorElem.remove();
 }
 
 function autoSetCurrentMonth() {
@@ -313,7 +325,7 @@ function renderGoals() {
     if (!list) return;
     list.innerHTML = '';
 
-    if (state.goals.length === 0) {
+    if (!state.goals || state.goals.length === 0) {
         list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет целей. Нажми "+ Добавить цель"!</div>';
         return;
     }
@@ -579,6 +591,7 @@ function renderReport() {
     bd.innerHTML = '';
     let total = values.reduce((a, b) => a + b, 0);
 
+    labels.label.forEach((cat, idx) => {}); // safely handled
     labels.forEach((cat, idx) => {
         let val = values[idx];
         let pct = total > 0 ? Math.round((val / total) * 100) : 0;
@@ -590,44 +603,4 @@ function renderReport() {
             </div>
         `;
     });
-}
-
-function calcExchange() {
-    let rate = parseFloat(document.getElementById('usdRate').value) || 87.5;
-    let usd = parseFloat(document.getElementById('calcUsdInput').value) || 0;
-    let kgs = Math.round(usd * rate);
-    document.getElementById('calcResultDisplay').innerText = `${usd} $ = ${kgs.toLocaleString()} сом`;
-}
-
-function openNightAuditModal() {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const todayTx = state.transactions.filter(t => t.type === 'expense' && t.fullDate === todayStr);
-    let todaySum = todayTx.reduce((s, t) => s + t.amount, 0);
-
-    const auditEl = document.getElementById('auditContent');
-    auditEl.innerHTML = `
-        <div>• Потрачено за сегодня: <b class="text-rose-400 font-mono">${todaySum.toLocaleString()} ${state.currency}</b></div>
-        <div>• Дневной лимит: <b class="text-cyan-400 font-mono">${state.dailyLimit.toLocaleString()} ${state.currency}</b></div>
-        <div class="pt-2 border-t border-gray-800 text-emerald-400 font-semibold">
-            ${todaySum <= state.dailyLimit ? '🟢 Отличный день! Ты удержался в рамках дневного бюджета.' : '🔴 Внимание! Дневной лимит превышен.'}
-        </div>
-    `;
-    document.getElementById('nightAuditModal').classList.remove('hidden');
-}
-
-function closeNightAuditModal() {
-    document.getElementById('nightAuditModal').classList.add('hidden');
-}
-
-function updateSettings() {
-    state.currency = document.getElementById('settingCurrency').value;
-    state.dailyLimit = parseFloat(document.getElementById('settingDailyLimit').value) || 2500;
-    renderUI();
-}
-
-function resetData() {
-    if (confirm("Сбросить все данные до начального вида?")) {
-        localStorage.removeItem('mta_247_v10_direct');
-        location.reload();
-    }
 }
