@@ -52,7 +52,7 @@ function renderUserSwitcher() {
     if (!nameDisp) return;
     
     nameDisp.innerHTML = `
-        <select id="userSelect" onchange="switchUser(this.value)" class="bg-gray-900 text-cyan-400 border border-gray-800 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none">
+        <select id="userSelect" onchange="switchUser(this.value)" class="bg-gray-900 text-cyan-400 border border-gray-800 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none cursor-pointer">
             <option value="nurlan" ${currentUser === 'nurlan' ? 'selected' : ''}>👤 Нурлан</option>
             <option value="brother" ${currentUser === 'brother' ? 'selected' : ''}>👤 Брат (МТА)</option>
         </select>
@@ -80,11 +80,12 @@ async function loadState() {
             if (resData && resData.length > 0 && resData[0].data) {
                 state = { ...state, ...resData[0].data };
                 state.currentDate = new Date();
+                console.log(`🟢 Supabase загружен успешно для: ${currentUser}`);
                 return;
             }
         }
     } catch (e) {
-        console.log('Загрузка из Supabase не удалась, ищем в локале');
+        console.log('Ошибка сети с Supabase, используем локальную память');
     }
     
     // Резервная память локально
@@ -116,6 +117,7 @@ async function saveState() {
                 updated_at: new Date().toISOString()
             })
         });
+        console.log(`💾 Сохранено в Supabase для: ${currentUser}`);
     } catch (e) {
         console.log('Ошибка сохранения в Supabase');
     }
@@ -140,7 +142,8 @@ function updatePeriodLabel() {
     const monthNames = ["ЯНВАРЬ", "ФЕВРАЛЬ", "МАРТ", "АПРЕЛЬ", "МАЙ", "ИЮНЬ", "ИЮЛЬ", "АВГУСТ", "СЕНТЯБРЬ", "ОКТЯБРЬ", "НОЯБРЬ", "ДЕКАБРЬ"];
     let m = monthNames[state.currentDate.getMonth()];
     let y = state.currentDate.getFullYear();
-    document.getElementById('currentPeriodLabel').innerText = `${m} ${y}`;
+    const lbl = document.getElementById('currentPeriodLabel');
+    if (lbl) lbl.innerText = `${m} ${y}`;
 }
 
 function changePeriod(delta) {
@@ -156,106 +159,114 @@ function getPeriodPrefix() {
 
 function renderPanel() {
     const period = getPeriodPrefix();
-    const periodTx = state.transactions.filter(t => t.date.startsWith(period));
+    const periodTx = state.transactions.filter(t => t.date && t.date.startsWith(period));
 
     let totalInc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    document.getElementById('totalIncomeHeader').innerText = `${totalInc.toLocaleString()} ${state.currency}`;
+    const incHeader = document.getElementById('totalIncomeHeader');
+    if (incHeader) incHeader.innerText = `${totalInc.toLocaleString()} ${state.currency}`;
     
     const incList = document.getElementById('incomeList');
-    incList.innerHTML = '';
-    state.incomes.forEach(inc => {
-        let sum = periodTx.filter(t => t.type === 'income' && t.category === inc.name).reduce((s, t) => s + t.amount, 0);
-        let el = document.createElement('div');
-        el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
-        el.innerHTML = `
-            <button onclick="promptManageItem('income', '${inc.id}', '${inc.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
-            <div class="w-8 h-8 rounded-full ${inc.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${inc.icon}"></i></div>
-            <div class="text-[10px] text-gray-400 font-medium">${inc.name}</div>
-            <div class="text-xs font-bold font-mono text-gray-100 mt-0.5">${sum.toLocaleString()}</div>
-        `;
-        incList.appendChild(el);
-    });
+    if (incList) {
+        incList.innerHTML = '';
+        state.incomes.forEach(inc => {
+            let sum = periodTx.filter(t => t.type === 'income' && t.category === inc.name).reduce((s, t) => s + t.amount, 0);
+            let el = document.createElement('div');
+            el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
+            el.innerHTML = `
+                <button onclick="promptManageItem('income', '${inc.id}', '${inc.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
+                <div class="w-8 h-8 rounded-full ${inc.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${inc.icon}"></i></div>
+                <div class="text-[10px] text-gray-400 font-medium">${inc.name}</div>
+                <div class="text-xs font-bold font-mono text-gray-100 mt-0.5">${sum.toLocaleString()}</div>
+            `;
+            incList.appendChild(el);
+        });
 
-    let addIncBtn = document.createElement('button');
-    addIncBtn.onclick = () => {
-        let name = prompt("Название источника дохода:");
-        if (name) {
-            state.incomes.push({ id: 'inc_' + Date.now(), name, icon: 'fa-money-bill-wave', color: 'bg-emerald-500/20 text-emerald-400' });
-            renderUI();
-        }
-    };
-    addIncBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
-    addIncBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
-    incList.appendChild(addIncBtn);
+        let addIncBtn = document.createElement('button');
+        addIncBtn.onclick = () => {
+            let name = prompt("Название источника дохода:");
+            if (name) {
+                state.incomes.push({ id: 'inc_' + Date.now(), name, icon: 'fa-money-bill-wave', color: 'bg-emerald-500/20 text-emerald-400' });
+                renderUI();
+            }
+        };
+        addIncBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
+        addIncBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
+        incList.appendChild(addIncBtn);
+    }
 
     let totalWallets = 0;
     const wallList = document.getElementById('walletList');
-    wallList.innerHTML = '';
-    
-    state.wallets.forEach(w => {
-        let wExpenses = state.transactions.filter(t => t.walletId === w.id && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-        let wIncomes = state.transactions.filter(t => t.walletId === w.id && t.type === 'income').reduce((s, t) => s + t.amount, 0);
-        let currentBal = w.balance + wIncomes - wExpenses;
-        totalWallets += currentBal;
+    if (wallList) {
+        wallList.innerHTML = '';
+        state.wallets.forEach(w => {
+            let wExpenses = state.transactions.filter(t => t.walletId === w.id && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+            let wIncomes = state.transactions.filter(t => t.walletId === w.id && t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            let currentBal = w.balance + wIncomes - wExpenses;
+            totalWallets += currentBal;
 
-        let el = document.createElement('div');
-        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl flex items-center justify-between relative';
-        el.innerHTML = `
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-full ${w.color} flex items-center justify-center text-sm"><i class="fa-solid ${w.icon}"></i></div>
-                <div>
-                    <div class="text-[10px] text-gray-400">${w.name}</div>
-                    <div class="text-xs font-bold font-mono text-gray-100">${currentBal.toLocaleString()} ${state.currency}</div>
+            let el = document.createElement('div');
+            el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl flex items-center justify-between relative';
+            el.innerHTML = `
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-full ${w.color} flex items-center justify-center text-sm"><i class="fa-solid ${w.icon}"></i></div>
+                    <div>
+                        <div class="text-[10px] text-gray-400">${w.name}</div>
+                        <div class="text-xs font-bold font-mono text-gray-100">${currentBal.toLocaleString()} ${state.currency}</div>
+                    </div>
                 </div>
-            </div>
-            <button onclick="promptManageItem('wallet', '${w.id}', '${w.name}')" class="text-gray-600 hover:text-rose-400 text-xs px-1"><i class="fa-solid fa-trash"></i></button>
-        `;
-        wallList.appendChild(el);
-    });
-    document.getElementById('totalWalletHeader').innerText = `${totalWallets.toLocaleString()} ${state.currency}`;
+                <button onclick="promptManageItem('wallet', '${w.id}', '${w.name}')" class="text-gray-600 hover:text-rose-400 text-xs px-1"><i class="fa-solid fa-trash"></i></button>
+            `;
+            wallList.appendChild(el);
+        });
 
-    let addWallBtn = document.createElement('button');
-    addWallBtn.onclick = () => {
-        let name = prompt("Название кошелька:");
-        if (name) {
-            let bal = parseFloat(prompt("Начальный баланс (сом):") || 0);
-            state.wallets.push({ id: 'w_' + Date.now(), name, icon: 'fa-credit-card', color: 'bg-cyan-500/20 text-cyan-400', balance: bal });
-            renderUI();
-        }
-    };
-    addWallBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-3 rounded-2xl flex items-center justify-center gap-2 text-gray-500 hover:text-gray-300 text-xs';
-    addWallBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span>Добавить кошелек</span>`;
-    wallList.appendChild(addWallBtn);
+        let addWallBtn = document.createElement('button');
+        addWallBtn.onclick = () => {
+            let name = prompt("Название кошелька:");
+            if (name) {
+                let bal = parseFloat(prompt("Начальный баланс (сом):") || 0);
+                state.wallets.push({ id: 'w_' + Date.now(), name, icon: 'fa-credit-card', color: 'bg-cyan-500/20 text-cyan-400', balance: bal });
+                renderUI();
+            }
+        };
+        addWallBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-3 rounded-2xl flex items-center justify-center gap-2 text-gray-500 hover:text-gray-300 text-xs';
+        addWallBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span>Добавить кошелек</span>`;
+        wallList.appendChild(addWallBtn);
+    }
+    const wallHeader = document.getElementById('totalWalletHeader');
+    if (wallHeader) wallHeader.innerText = `${totalWallets.toLocaleString()} ${state.currency}`;
 
     let totalExp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    document.getElementById('totalExpenseHeader').innerText = `${totalExp.toLocaleString()} ${state.currency}`;
+    const expHeader = document.getElementById('totalExpenseHeader');
+    if (expHeader) expHeader.innerText = `${totalExp.toLocaleString()} ${state.currency}`;
 
     const catGrid = document.getElementById('categoryGrid');
-    catGrid.innerHTML = '';
-    state.categories.forEach(cat => {
-        let sum = periodTx.filter(t => t.type === 'expense' && t.category === cat.name).reduce((s, t) => s + t.amount, 0);
-        let el = document.createElement('div');
-        el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
-        el.innerHTML = `
-            <button onclick="promptManageItem('category', '${cat.id}', '${cat.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
-            <div class="w-8 h-8 rounded-full ${cat.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${cat.icon}"></i></div>
-            <div class="text-[10px] text-gray-400 font-medium">${cat.name}</div>
-            <div class="text-xs font-bold font-mono text-rose-400 mt-0.5">${sum.toLocaleString()}</div>
-        `;
-        catGrid.appendChild(el);
-    });
+    if (catGrid) {
+        catGrid.innerHTML = '';
+        state.categories.forEach(cat => {
+            let sum = periodTx.filter(t => t.type === 'expense' && t.category === cat.name).reduce((s, t) => s + t.amount, 0);
+            let el = document.createElement('div');
+            el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
+            el.innerHTML = `
+                <button onclick="promptManageItem('category', '${cat.id}', '${cat.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
+                <div class="w-8 h-8 rounded-full ${cat.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${cat.icon}"></i></div>
+                <div class="text-[10px] text-gray-400 font-medium">${cat.name}</div>
+                <div class="text-xs font-bold font-mono text-rose-400 mt-0.5">${sum.toLocaleString()}</div>
+            `;
+            catGrid.appendChild(el);
+        });
 
-    let addCatBtn = document.createElement('button');
-    addCatBtn.onclick = () => {
-        let name = prompt("Название категории расходов:");
-        if (name) {
-            state.categories.push({ id: 'c_' + Date.now(), name, icon: 'fa-tag', color: 'bg-rose-500/20 text-rose-400' });
-            renderUI();
-        }
-    };
-    addCatBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
-    addCatBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
-    catGrid.appendChild(addCatBtn);
+        let addCatBtn = document.createElement('button');
+        addCatBtn.onclick = () => {
+            let name = prompt("Название категории расходов:");
+            if (name) {
+                state.categories.push({ id: 'c_' + Date.now(), name, icon: 'fa-tag', color: 'bg-rose-500/20 text-rose-400' });
+                renderUI();
+            }
+        };
+        addCatBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
+        addCatBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
+        catGrid.appendChild(addCatBtn);
+    }
 }
 
 function renderLoans() {
@@ -393,7 +404,7 @@ function depositToGoal(goalId) {
 
 function renderForecast() {
     const period = getPeriodPrefix();
-    const periodTx = state.transactions.filter(t => t.date.startsWith(period));
+    const periodTx = state.transactions.filter(t => t.date && t.date.startsWith(period));
 
     let inc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     let exp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -401,18 +412,23 @@ function renderForecast() {
     let monthlySavings = Math.max(0, inc - exp);
     let yearForecast = monthlySavings * 12;
 
-    document.getElementById('forecastYearTotal').innerText = `${yearForecast.toLocaleString()} ${state.currency}`;
-    document.getElementById('forecastDescText').innerText = `При остатке ${monthlySavings.toLocaleString()} сом в месяц, за 12 месяцев у вас зафиксируется ${yearForecast.toLocaleString()} ${state.currency}.`;
+    const fcTot = document.getElementById('forecastYearTotal');
+    if (fcTot) fcTot.innerText = `${yearForecast.toLocaleString()} ${state.currency}`;
+    const fcDesc = document.getElementById('forecastDescText');
+    if (fcDesc) fcDesc.innerText = `При остатке ${monthlySavings.toLocaleString()} сом в месяц, за 12 месяцев у вас зафиксируется ${yearForecast.toLocaleString()} ${state.currency}.`;
 }
 
 function promptManageItem(type, id, name) {
     itemToDelete = { type, id };
-    document.getElementById('manageItemTitle').innerText = `Удалить "${name}"?`;
-    document.getElementById('manageItemModal').classList.remove('hidden');
+    const modalTitle = document.getElementById('manageItemTitle');
+    if (modalTitle) modalTitle.innerText = `Удалить "${name}"?`;
+    const modal = document.getElementById('manageItemModal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closeManageModal() {
-    document.getElementById('manageItemModal').classList.add('hidden');
+    const modal = document.getElementById('manageItemModal');
+    if (modal) modal.classList.add('hidden');
     itemToDelete = null;
 }
 
@@ -429,13 +445,15 @@ function confirmDeleteItem() {
 
 function renderHistory() {
     const list = document.getElementById('historyList');
+    if (!list) return;
     list.innerHTML = '';
     const period = getPeriodPrefix();
-    const periodTx = state.transactions.filter(t => t.date.startsWith(period));
+    const periodTx = state.transactions.filter(t => t.date && t.date.startsWith(period));
 
     let inc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     let exp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    document.getElementById('historySaldo').innerText = `${(inc - exp).toLocaleString()} ${state.currency}`;
+    const saldoEl = document.getElementById('historySaldo');
+    if (saldoEl) saldoEl.innerText = `${(inc - exp).toLocaleString()} ${state.currency}`;
 
     if (periodTx.length === 0) {
         list.innerHTML = '<div class="text-gray-500 text-xs text-center py-8">За этот период нет записей</div>';
@@ -474,14 +492,18 @@ function deleteTx(id) {
 
 function openAddTransactionModal() {
     const wSelect = document.getElementById('txWallet');
-    wSelect.innerHTML = '';
-    state.wallets.forEach(w => { wSelect.innerHTML += `<option value="${w.id}">${w.name}</option>`; });
+    if (wSelect) {
+        wSelect.innerHTML = '';
+        state.wallets.forEach(w => { wSelect.innerHTML += `<option value="${w.id}">${w.name}</option>`; });
+    }
     setTxType('expense');
-    document.getElementById('addModal').classList.remove('hidden');
+    const modal = document.getElementById('addModal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closeAddModal() {
-    document.getElementById('addModal').classList.add('hidden');
+    const modal = document.getElementById('addModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 function setTxType(type) {
@@ -489,15 +511,16 @@ function setTxType(type) {
     const btnExp = document.getElementById('txTypeExp');
     const btnInc = document.getElementById('txTypeInc');
     const cSelect = document.getElementById('txCategory');
+    if (!cSelect) return;
     cSelect.innerHTML = '';
 
     if (type === 'expense') {
-        btnExp.className = 'flex-1 py-1 rounded-lg bg-rose-500 text-white font-extrabold';
-        btnInc.className = 'flex-1 py-1 rounded-lg text-gray-400';
+        if (btnExp) btnExp.className = 'flex-1 py-1 rounded-lg bg-rose-500 text-white font-extrabold';
+        if (btnInc) btnInc.className = 'flex-1 py-1 rounded-lg text-gray-400';
         state.categories.forEach(c => cSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`);
     } else {
-        btnInc.className = 'flex-1 py-1 rounded-lg bg-emerald-500 text-white font-extrabold';
-        btnExp.className = 'flex-1 py-1 rounded-lg text-gray-400';
+        if (btnInc) btnInc.className = 'flex-1 py-1 rounded-lg bg-emerald-500 text-white font-extrabold';
+        if (btnExp) btnExp.className = 'flex-1 py-1 rounded-lg text-gray-400';
         state.incomes.forEach(i => cSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`);
     }
 }
@@ -530,15 +553,17 @@ function handleSaveTransaction(e) {
 
 function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    if (targetTab) targetTab.classList.remove('hidden');
 
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('text-cyan-400'));
-    document.getElementById(`nav-${tabName}`).classList.add('text-cyan-400');
+    const targetNav = document.getElementById(`nav-${tabName}`);
+    if (targetNav) targetNav.classList.add('text-cyan-400');
 }
 
 function initChart() {
     const canvas = document.getElementById('reportChart');
-    if (!canvas) return;
+    if (!canvas || typeof Chart === 'undefined') return;
     const ctx = canvas.getContext('2d');
     reportChartInstance = new Chart(ctx, {
         type: 'doughnut',
@@ -549,9 +574,12 @@ function initChart() {
 
 function setReportType(type) {
     currentReportType = type;
-    document.getElementById('repBtnDay').className = type === 'day' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
-    document.getElementById('repBtnMonth').className = type === 'month' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
-    document.getElementById('repBtnYear').className = type === 'year' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    const btnD = document.getElementById('repBtnDay');
+    if (btnD) btnD.className = type === 'day' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    const btnM = document.getElementById('repBtnMonth');
+    if (btnM) btnM.className = type === 'month' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    const btnY = document.getElementById('repBtnYear');
+    if (btnY) btnY.className = type === 'year' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
     renderReport();
 }
 
@@ -567,15 +595,17 @@ function renderReport() {
         title = `Анализ за сегодня: ${todayStr}`;
     } else if (currentReportType === 'month') {
         const period = getPeriodPrefix();
-        targetTx = state.transactions.filter(t => t.type === 'expense' && t.date.startsWith(period));
-        title = `Анализ за месяц: ${document.getElementById('currentPeriodLabel').innerText}`;
+        targetTx = state.transactions.filter(t => t.type === 'expense' && t.date && t.date.startsWith(period));
+        const lbl = document.getElementById('currentPeriodLabel');
+        title = `Анализ за месяц: ${lbl ? lbl.innerText : ''}`;
     } else if (currentReportType === 'year') {
         const year = state.currentDate.getFullYear().toString();
-        targetTx = state.transactions.filter(t => t.type === 'expense' && t.date.startsWith(year));
+        targetTx = state.transactions.filter(t => t.type === 'expense' && t.date && t.date.startsWith(year));
         title = `Полный анализ за весь ${year} год`;
     }
 
-    document.getElementById('reportTitleHeader').innerText = title;
+    const repHeader = document.getElementById('reportTitleHeader');
+    if (repHeader) repHeader.innerText = title;
 
     const catMap = {};
     targetTx.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
@@ -588,10 +618,10 @@ function renderReport() {
     reportChartInstance.update();
 
     const bd = document.getElementById('reportBreakdown');
+    if (!bd) return;
     bd.innerHTML = '';
     let total = values.reduce((a, b) => a + b, 0);
 
-    labels.label.forEach((cat, idx) => {}); // safely handled
     labels.forEach((cat, idx) => {
         let val = values[idx];
         let pct = total > 0 ? Math.round((val / total) * 100) : 0;
