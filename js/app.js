@@ -39,31 +39,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkAuthStatus();
 });
 
-// Проверка авторизации
 function checkAuthStatus() {
     const authEl = document.getElementById('authScreen');
-    
-    // Проверяем, есть ли реально сохраненное имя в localStorage
     currentUser = localStorage.getItem('mta_current_user');
 
-    if (!currentUser || currentUser.trim() === '' || currentUser === 'null' || currentUser === 'undefined') {
-        // Если имени нет или память чистая — ВСЕГДА показываем экран входа
+    if (!currentUser || currentUser === 'null' || currentUser === 'undefined' || currentUser.trim() === '') {
         currentUser = null;
         if (authEl) authEl.classList.remove('hidden');
     } else {
-        // Если имя есть — скрываем окно входа и запускаем приложение
         if (authEl) authEl.classList.add('hidden');
         initApp();
     }
 }
 
-// Обработка входа по имени
 async function handleLogin(e) {
     e.preventDefault();
     const input = document.getElementById('usernameInput');
     if (!input || !input.value.trim()) return;
 
-    // Очищаем имя от пробелов и приводим к нижнему регистру
     currentUser = input.value.trim().toLowerCase();
     localStorage.setItem('mta_current_user', currentUser);
 
@@ -73,14 +66,12 @@ async function handleLogin(e) {
     await initApp();
 }
 
-// Выход из профиля (если потребуется)
 function logoutUser() {
     localStorage.removeItem('mta_current_user');
     currentUser = null;
     location.reload();
 }
 
-// Инициализация приложения после входа
 async function initApp() {
     autoSetCurrentMonth();
     renderUserBadge();
@@ -89,23 +80,26 @@ async function initApp() {
     initChart();
 }
 
-// Отображение текущего профиля в шапке
 function renderUserBadge() {
-    const nameDisp = document.getElementById('userNameDisplay');
+    const nameDisp = document.getElementById('userNameDisplay') || document.querySelector('header .max-w-md');
     if (!nameDisp) return;
     
-    nameDisp.innerHTML = `
-        <div class="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-cyan-400 font-bold">
-            <i class="fa-solid fa-user-circle"></i>
-            <span>${currentUser.toUpperCase()}</span>
-            <button onclick="logoutUser()" class="text-gray-500 hover:text-rose-400 ml-1 text-[10px]" title="Выйти">
-                <i class="fa-solid fa-right-from-bracket"></i>
-            </button>
-        </div>
+    let existingBadge = document.getElementById('userBadgeBlock');
+    if (existingBadge) existingBadge.remove();
+
+    let badgeDiv = document.createElement('div');
+    badgeDiv.id = 'userBadgeBlock';
+    badgeDiv.className = 'flex items-center gap-1.5 bg-gray-900 border border-gray-800 rounded-xl px-2.5 py-1 text-xs text-cyan-400 font-bold ml-2';
+    badgeDiv.innerHTML = `
+        <i class="fa-solid fa-user text-[10px]"></i>
+        <span>${currentUser.toUpperCase()}</span>
+        <button onclick="logoutUser()" class="text-gray-500 hover:text-rose-400 ml-1" title="Сменить пользователя"><i class="fa-solid fa-right-from-bracket"></i></button>
     `;
+    
+    const titleBlock = nameDisp.querySelector('.flex.items-center.gap-2\\.5');
+    if (titleBlock) titleBlock.appendChild(badgeDiv);
 }
 
-// Загрузка изолированных данных из Supabase
 async function loadState() {
     try {
         let response = await fetch(`${SUPABASE_URL}/rest/v1/user_data?user_id=eq.${currentUser}&select=data`, {
@@ -119,13 +113,10 @@ async function loadState() {
             if (resData && resData.length > 0 && resData[0].data) {
                 state = { ...state, ...resData[0].data };
                 state.currentDate = new Date();
-                console.log(`🟢 Данные загружены для: ${currentUser}`);
                 return;
             }
         }
-    } catch (e) {
-        console.log('Загрузка из Supabase не удалась, ищем в локале');
-    }
+    } catch (e) {}
     
     const saved = localStorage.getItem(`mta_247_${currentUser}`);
     if (saved) {
@@ -136,7 +127,6 @@ async function loadState() {
     }
 }
 
-// Сохранение данных в Supabase
 async function saveState() {
     if (!currentUser) return;
     localStorage.setItem(`mta_247_${currentUser}`, JSON.stringify(state));
@@ -156,10 +146,7 @@ async function saveState() {
                 updated_at: new Date().toISOString()
             })
         });
-        console.log(`💾 Данные сохранены для: ${currentUser}`);
-    } catch (e) {
-        console.log('Ошибка сохранения в Supabase');
-    }
+    } catch (e) {}
 }
 
 function autoSetCurrentMonth() {
@@ -194,9 +181,7 @@ function getPeriodPrefix() {
     let y = state.currentDate.getFullYear();
     let m = String(state.currentDate.getMonth() + 1).padStart(2, '0');
     return `${y}-${m}`;
-}
-
-function renderPanel() {
+}function renderPanel() {
     const period = getPeriodPrefix();
     const periodTx = state.transactions.filter(t => t.date && t.date.startsWith(period));
 
@@ -308,7 +293,6 @@ function renderPanel() {
     }
 }
 
-function // ОТОБРАЖЕНИЕ КРЕДИТОВ И ДОЛГОВ (С РАСЧЕТОМ МЕСЯЦЕВ)
 function renderLoans() {
     const list = document.getElementById('loansList');
     if (!list) return;
@@ -320,7 +304,6 @@ function renderLoans() {
     }
 
     state.loans.forEach(l => {
-        // Считаем сколько месяцев осталось платить
         let monthsLeft = (l.monthlyPayment && l.monthlyPayment > 0) ? Math.ceil(l.remaining / l.monthlyPayment) : 0;
 
         let el = document.createElement('div');
@@ -343,46 +326,6 @@ function renderLoans() {
     });
 }
 
-// ОТОБРАЖЕНИЕ ЦЕЛЕЙ (С РАСЧЕТОМ МЕСЯЦЕВ И ПРОГРЕСС-БАРОМ)
-function renderGoals() {
-    const list = document.getElementById('goalsList');
-    if (!list) return;
-    list.innerHTML = '';
-
-    if (!state.goals || state.goals.length === 0) {
-        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет целей. Нажми "+ Добавить цель"!</div>';
-        return;
-    }
-
-    state.goals.forEach(g => {
-        let pct = Math.min(100, Math.round((g.saved / g.target) * 100));
-        let left = Math.max(0, g.target - g.saved);
-        // Считаем сколько месяцев осталось откладывать
-        let monthsLeft = (g.monthlyPledge && g.monthlyPledge > 0) ? Math.ceil(left / g.monthlyPledge) : 0;
-
-        let el = document.createElement('div');
-        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl space-y-2 text-xs relative';
-        el.innerHTML = `
-            <div class="flex justify-between items-center">
-                <span class="font-bold text-gray-100">${g.name}</span>
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-cyan-400 font-bold">${g.saved.toLocaleString()} / ${g.target.toLocaleString()} ${state.currency}</span>
-                    <button onclick="promptManageItem('goal', '${g.id}', '${g.name}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
-                </div>
-            </div>
-            
-            <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden border border-gray-800">
-                <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-500" style="width: ${pct}%"></div>
-            </div>
-
-            <div class="flex justify-between items-center text-[10px] text-gray-400 pt-0.5">
-                <span>Осталось: <b class="text-rose-400 font-mono">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `<span class="text-cyan-400 font-semibold ml-1">(~${monthsLeft} мес.)</span>` : ''}</span>
-                <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-cyan-500/30">+ Пополнить</button>
-            </div>
-        `;
-        list.appendChild(el);
-    });
-}
 function addNewLoan() {
     let name = prompt("Название кредита или долга:");
     if (!name) return;
@@ -431,7 +374,7 @@ function renderGoals() {
     state.goals.forEach(g => {
         let pct = Math.min(100, Math.round((g.saved / g.target) * 100));
         let left = Math.max(0, g.target - g.saved);
-        let monthsLeft = g.monthlyPledge > 0 ? Math.ceil(left / g.monthlyPledge) : 0;
+        let monthsLeft = (g.monthlyPledge && g.monthlyPledge > 0) ? Math.ceil(left / g.monthlyPledge) : 0;
 
         let el = document.createElement('div');
         el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl space-y-2 text-xs relative';
@@ -449,7 +392,7 @@ function renderGoals() {
             </div>
 
             <div class="flex justify-between items-center text-[10px] text-gray-400 pt-0.5">
-                <span>Осталось: <b class="text-rose-400 font-mono">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `(~${monthsLeft} мес.)` : ''}</span>
+                <span>Осталось: <b class="text-rose-400 font-mono">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `<span class="text-cyan-400 font-semibold ml-1">(~${monthsLeft} мес.)</span>` : ''}</span>
                 <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-cyan-500/30">+ Пополнить</button>
             </div>
         `;
@@ -487,6 +430,35 @@ function depositToGoal(goalId) {
         });
         renderUI();
     }
+}
+
+function openNightAuditModal() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayTx = state.transactions.filter(t => t.type === 'expense' && t.fullDate === todayStr);
+    let todaySpent = todayTx.reduce((s, t) => s + t.amount, 0);
+    let limit = state.dailyLimit || 2500;
+    let diff = limit - todaySpent;
+
+    const content = document.getElementById('auditContent');
+    if (content) {
+        content.innerHTML = `
+            <div class="flex justify-between"><span>Дата:</span><b class="text-cyan-400">${todayStr}</b></div>
+            <div class="flex justify-between"><span>Дневной лимит:</span><b class="text-gray-200">${limit.toLocaleString()} ${state.currency}</b></div>
+            <div class="flex justify-between"><span>Потрачено сегодня:</span><b class="text-rose-400">${todaySpent.toLocaleString()} ${state.currency}</b></div>
+            <div class="border-t border-gray-800 pt-2 mt-2 flex justify-between font-bold">
+                <span>Итог дня:</span>
+                <b class="${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${diff >= 0 ? 'Экономия: +' + diff.toLocaleString() : 'Перерасход: ' + diff.toLocaleString()} ${state.currency}</b>
+            </div>
+        `;
+    }
+
+    const modal = document.getElementById('nightAuditModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeNightAuditModal() {
+    const modal = document.getElementById('nightAuditModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 function renderForecast() {
