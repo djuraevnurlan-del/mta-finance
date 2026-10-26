@@ -308,6 +308,7 @@ function renderPanel() {
     }
 }
 
+function // ОТОБРАЖЕНИЕ КРЕДИТОВ И ДОЛГОВ (С РАСЧЕТОМ МЕСЯЦЕВ)
 function renderLoans() {
     const list = document.getElementById('loansList');
     if (!list) return;
@@ -319,22 +320,69 @@ function renderLoans() {
     }
 
     state.loans.forEach(l => {
+        // Считаем сколько месяцев осталось платить
+        let monthsLeft = (l.monthlyPayment && l.monthlyPayment > 0) ? Math.ceil(l.remaining / l.monthlyPayment) : 0;
+
         let el = document.createElement('div');
-        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl flex justify-between items-center text-xs';
+        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl space-y-1.5 text-xs';
         el.innerHTML = `
-            <div>
-                <div class="font-bold text-gray-200">${l.name}</div>
-                <div class="text-[10px] text-gray-400">Остаток долга: <b class="text-rose-400 font-mono">${l.remaining.toLocaleString()} ${state.currency}</b></div>
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-gray-100">${l.name}</span>
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-rose-400 font-bold">${l.remaining.toLocaleString()} ${state.currency}</span>
+                    <button onclick="promptManageItem('loan', '${l.id}', '${l.name}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+                </div>
             </div>
-            <div class="flex items-center gap-2">
+
+            <div class="flex justify-between items-center text-[10px] text-gray-400 pt-1 border-t border-gray-800/60">
+                <span>Ежемесячно: <b class="text-gray-200 font-mono">${l.monthlyPayment ? l.monthlyPayment.toLocaleString() : 0} ${state.currency}</b> ${monthsLeft > 0 ? `<span class="text-amber-400 font-semibold ml-1">(~${monthsLeft} мес.)</span>` : ''}</span>
                 <button onclick="payLoan('${l.id}')" class="bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-rose-500/30">Внести платеж</button>
-                <button onclick="promptManageItem('loan', '${l.id}', '${l.name}')" class="text-gray-600 hover:text-rose-400 px-1"><i class="fa-solid fa-trash"></i></button>
             </div>
         `;
         list.appendChild(el);
     });
 }
 
+// ОТОБРАЖЕНИЕ ЦЕЛЕЙ (С РАСЧЕТОМ МЕСЯЦЕВ И ПРОГРЕСС-БАРОМ)
+function renderGoals() {
+    const list = document.getElementById('goalsList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!state.goals || state.goals.length === 0) {
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет целей. Нажми "+ Добавить цель"!</div>';
+        return;
+    }
+
+    state.goals.forEach(g => {
+        let pct = Math.min(100, Math.round((g.saved / g.target) * 100));
+        let left = Math.max(0, g.target - g.saved);
+        // Считаем сколько месяцев осталось откладывать
+        let monthsLeft = (g.monthlyPledge && g.monthlyPledge > 0) ? Math.ceil(left / g.monthlyPledge) : 0;
+
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl space-y-2 text-xs relative';
+        el.innerHTML = `
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-gray-100">${g.name}</span>
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-cyan-400 font-bold">${g.saved.toLocaleString()} / ${g.target.toLocaleString()} ${state.currency}</span>
+                    <button onclick="promptManageItem('goal', '${g.id}', '${g.name}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+            
+            <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden border border-gray-800">
+                <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+
+            <div class="flex justify-between items-center text-[10px] text-gray-400 pt-0.5">
+                <span>Осталось: <b class="text-rose-400 font-mono">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `<span class="text-cyan-400 font-semibold ml-1">(~${monthsLeft} мес.)</span>` : ''}</span>
+                <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-cyan-500/30">+ Пополнить</button>
+            </div>
+        `;
+        list.appendChild(el);
+    });
+}
 function addNewLoan() {
     let name = prompt("Название кредита или долга:");
     if (!name) return;
