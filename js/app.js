@@ -1,17 +1,17 @@
-// МТА 24/7 — Учет Финансов (Supabase + Multi-User)
+// МТА 24/7 — Учет Финансов (Supabase + Multi-User Auth)
 
 const SUPABASE_URL = 'https://sztrhecvoyfyuqruujoh.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_T_KVCWo75Uh4P45qUs1KMQ_iEHnQYjO'; 
 
-let currentUser = localStorage.getItem('mta_current_user') || 'nurlan';
+let currentUser = localStorage.getItem('mta_current_user') || null;
 
 let state = {
     currentDate: new Date(),
     currency: 'KGS',
     dailyLimit: 2500,
     wallets: [
-        { id: 'cash', name: 'Наличные', icon: 'fa-wallet', color: 'bg-cyan-500/20 text-cyan-400', balance: 5000 },
-        { id: 'card', name: 'Карта VISA', icon: 'fa-credit-card', color: 'bg-rose-500/20 text-rose-400', balance: 15000 }
+        { id: 'cash', name: 'Наличные', icon: 'fa-wallet', color: 'bg-cyan-500/20 text-cyan-400', balance: 0 },
+        { id: 'card', name: 'Карта VISA', icon: 'fa-credit-card', color: 'bg-rose-500/20 text-rose-400', balance: 0 }
     ],
     incomes: [
         { id: 'inc1', name: 'Зарплата', icon: 'fa-money-bill-wave', color: 'bg-emerald-500/20 text-emerald-400' },
@@ -36,37 +36,69 @@ let reportChartInstance = null;
 let itemToDelete = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    checkAuthStatus();
+});
+
+// Проверка авторизации
+function checkAuthStatus() {
+    const authEl = document.getElementById('authScreen');
+    if (!currentUser) {
+        if (authEl) authEl.classList.remove('hidden');
+    } else {
+        if (authEl) authEl.classList.add('hidden');
+        initApp();
+    }
+}
+
+// Обработка входа по имени
+async function handleLogin(e) {
+    e.preventDefault();
+    const input = document.getElementById('usernameInput');
+    if (!input || !input.value.trim()) return;
+
+    // Очищаем имя от пробелов и приводим к нижнему регистру
+    currentUser = input.value.trim().toLowerCase();
+    localStorage.setItem('mta_current_user', currentUser);
+
     const authEl = document.getElementById('authScreen');
     if (authEl) authEl.classList.add('hidden');
 
+    await initApp();
+}
+
+// Выход из профиля (если потребуется)
+function logoutUser() {
+    localStorage.removeItem('mta_current_user');
+    currentUser = null;
+    location.reload();
+}
+
+// Инициализация приложения после входа
+async function initApp() {
     autoSetCurrentMonth();
-    renderUserSwitcher();
+    renderUserBadge();
     await loadState();
     renderUI();
     initChart();
-});
+}
 
-// Переключатель пользователей (Ты и Брат)
-function renderUserSwitcher() {
+// Отображение текущего профиля в шапке
+function renderUserBadge() {
     const nameDisp = document.getElementById('userNameDisplay');
     if (!nameDisp) return;
     
     nameDisp.innerHTML = `
-        <select id="userSelect" onchange="switchUser(this.value)" class="bg-gray-900 text-cyan-400 border border-gray-800 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none cursor-pointer">
-            <option value="nurlan" ${currentUser === 'nurlan' ? 'selected' : ''}>👤 Нурлан</option>
-            <option value="brother" ${currentUser === 'brother' ? 'selected' : ''}>👤 Брат (МТА)</option>
-        </select>
+        <div class="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-cyan-400 font-bold">
+            <i class="fa-solid fa-user-circle"></i>
+            <span>${currentUser.toUpperCase()}</span>
+            <button onclick="logoutUser()" class="text-gray-500 hover:text-rose-400 ml-1 text-[10px]" title="Выйти">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
     `;
 }
 
-async function switchUser(newUser) {
-    currentUser = newUser;
-    localStorage.setItem('mta_current_user', currentUser);
-    await loadState();
-    renderUI();
-}
-
-// Загрузка изолированных данных конкретного пользователя из Supabase
+// Загрузка изолированных данных из Supabase
 async function loadState() {
     try {
         let response = await fetch(`${SUPABASE_URL}/rest/v1/user_data?user_id=eq.${currentUser}&select=data`, {
@@ -80,15 +112,14 @@ async function loadState() {
             if (resData && resData.length > 0 && resData[0].data) {
                 state = { ...state, ...resData[0].data };
                 state.currentDate = new Date();
-                console.log(`🟢 Supabase загружен успешно для: ${currentUser}`);
+                console.log(`🟢 Данные загружены для: ${currentUser}`);
                 return;
             }
         }
     } catch (e) {
-        console.log('Ошибка сети с Supabase, используем локальную память');
+        console.log('Загрузка из Supabase не удалась, ищем в локале');
     }
     
-    // Резервная память локально
     const saved = localStorage.getItem(`mta_247_${currentUser}`);
     if (saved) {
         try {
@@ -98,8 +129,9 @@ async function loadState() {
     }
 }
 
-// Сохранение данных под тегом user_id в Supabase
+// Сохранение данных в Supabase
 async function saveState() {
+    if (!currentUser) return;
     localStorage.setItem(`mta_247_${currentUser}`, JSON.stringify(state));
 
     try {
@@ -117,7 +149,7 @@ async function saveState() {
                 updated_at: new Date().toISOString()
             })
         });
-        console.log(`💾 Сохранено в Supabase для: ${currentUser}`);
+        console.log(`💾 Данные сохранены для: ${currentUser}`);
     } catch (e) {
         console.log('Ошибка сохранения в Supabase');
     }
