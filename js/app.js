@@ -42,9 +42,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Проверка авторизации
 function checkAuthStatus() {
     const authEl = document.getElementById('authScreen');
-    if (!currentUser) {
+    
+    // Проверяем, есть ли реально сохраненное имя в localStorage
+    currentUser = localStorage.getItem('mta_current_user');
+
+    if (!currentUser || currentUser.trim() === '' || currentUser === 'null' || currentUser === 'undefined') {
+        // Если имени нет или память чистая — ВСЕГДА показываем экран входа
+        currentUser = null;
         if (authEl) authEl.classList.remove('hidden');
     } else {
+        // Если имя есть — скрываем окно входа и запускаем приложение
         if (authEl) authEl.classList.add('hidden');
         initApp();
     }
