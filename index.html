@@ -82,34 +82,26 @@
             <!-- КОШЕЛЬКИ -->
             <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Кошельки и балансы</h3>
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Мои кошельки</h3>
                     <span class="text-xs font-mono font-bold text-cyan-400" id="totalWalletHeader">0 KGS</span>
                 </div>
                 <div id="walletList" class="space-y-2"></div>
+                <button onclick="addWalletPrompt()" class="w-full bg-gray-900 border border-dashed border-gray-800 p-3 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:text-gray-200 text-xs">
+                    <i class="fa-solid fa-plus"></i><span>Добавить кошелек</span>
+                </button>
             </div>
 
             <!-- ДОХОДЫ (КАТЕГОРИИ) -->
             <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
-                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Источники доходов</h3>
+                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Доходы за месяц</h3>
                 <div id="incomeList" class="grid grid-cols-3 gap-2"></div>
             </div>
-
-            <!-- КАТЕГОРИИ РАСХОДОВ -->
-            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
-                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Категории расходов</h3>
-                <div id="categoryGrid" class="grid grid-cols-3 gap-2"></div>
-            </div>
-
-            <!-- КНОПКА ДОБАВИТЬ ТРАЗАКЦИЮ -->
-            <button onclick="openAddTransactionModal()" class="w-full bg-gradient-to-r from-cyan-500 to-emerald-400 text-black font-extrabold py-3.5 rounded-3xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10">
-                <i class="fa-solid fa-plus text-sm"></i> Добавить операцию
-            </button>
 
             <!-- КРЕДИТЫ И ДОЛГИ -->
             <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Кредиты и долги</h3>
-                    <button onclick="addNewLoan()" class="text-xs text-rose-400 font-bold hover:underline">+ Добавить</button>
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Кредиты & Долги</h3>
+                    <button onclick="addNewLoan()" class="text-xs text-rose-400 font-bold hover:underline">+ Добавить долг</button>
                 </div>
                 <div id="loansList" class="space-y-2"></div>
             </div>
@@ -117,17 +109,34 @@
             <!-- ФИНАНСОВЫЕ ЦЕЛИ -->
             <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Финансовые цели</h3>
-                    <button onclick="addNewGoal()" class="text-xs text-cyan-400 font-bold hover:underline">+ Цель</button>
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Штурм вершин (Цели)</h3>
+                    <button onclick="addNewGoal()" class="text-xs text-cyan-400 font-bold hover:underline">+ Добавить цель</button>
                 </div>
                 <div id="goalsList" class="space-y-2"></div>
             </div>
 
             <!-- ПРОГНОЗ КАПИТАЛА -->
             <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-2">
-                <div class="text-[10px] text-gray-400 uppercase font-semibold">Прогноз на 12 месяцев</div>
+                <div class="text-[10px] text-cyan-400 uppercase font-semibold">Прогноз накоплений за 1 год</div>
                 <div class="text-lg font-mono font-extrabold text-cyan-400" id="forecastYearTotal">0 KGS</div>
-                <p class="text-[11px] text-gray-400 leading-relaxed" id="forecastDescText">Накопительный прогноз строится на основе ваших текущих доходов и расходов за месяц.</p>
+                <p class="text-[11px] text-gray-400 leading-relaxed" id="forecastDescText">Если сохранять текущую разницу доходов и трат, за 12 месяцев отложится указанная сумма.</p>
+            </div>
+
+            <!-- РАСХОДЫ ЗА МЕСЯЦ -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Расходы за месяц</h3>
+                <div id="categoryGrid" class="grid grid-cols-3 gap-2"></div>
+            </div>
+
+            <!-- ВЕЧЕРНИЙ ЧЕК-ИН -->
+            <div class="bg-gradient-to-r from-purple-950/40 to-indigo-950/40 border border-gray-800 p-4 rounded-3xl flex justify-between items-center">
+                <div class="space-y-0.5">
+                    <div class="text-xs font-bold text-amber-400 flex items-center gap-1.5"><i class="fa-solid fa-moon"></i> Вечерний Чек-ин Дня</div>
+                    <div class="text-[10px] text-gray-400">Подведи итоги сегодняшних трат</div>
+                </div>
+                <button onclick="openNightAuditModal()" class="bg-gray-900 border border-gray-700 hover:bg-gray-800 text-cyan-400 px-3 py-2 rounded-2xl text-xs font-bold flex items-center gap-1">
+                    <span>Завершить день</span><i class="fa-solid fa-arrow-right text-[10px]"></i>
+                </button>
             </div>
 
         </div>
@@ -143,7 +152,7 @@
             </div>
         </div>
 
-        <!-- ВКЛАДКА 3: АНАЛИТИКА / ОТЧЕТЫ -->
+        <!-- ВКЛАДКА 3: ОТЧЕТЫ / АНАЛИТИКА -->
         <div id="tab-reports" class="tab-content hidden space-y-4">
             <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-4">
                 <div class="flex gap-1 bg-gray-900 p-1 rounded-2xl">
@@ -161,6 +170,22 @@
             </div>
         </div>
 
+        <!-- ВКЛАДКА 4: НАСТРОЙКИ (СМЕНА ПОЛЬЗОВАТЕЛЯ / ВЫХОД) -->
+        <div id="tab-settings" class="tab-content hidden space-y-4">
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-4">
+                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Аккаунт и сессия</h3>
+                <div class="bg-gray-900 p-3 rounded-2xl flex justify-between items-center text-xs">
+                    <div>
+                        <div class="text-gray-400 text-[10px]">Текущий пользователь:</div>
+                        <div id="settingsUserDisplay" class="font-bold text-cyan-400 text-sm">Неизвестно</div>
+                    </div>
+                    <button onclick="logoutUser()" class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-2 rounded-xl font-bold">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i> Выйти
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -171,8 +196,14 @@
         <button onclick="switchTab('history')" id="nav-history" class="nav-item text-gray-500 flex flex-col items-center gap-1 text-[10px] font-bold">
             <i class="fa-solid fa-list-ul text-base"></i><span>История</span>
         </button>
+        <button onclick="openAddTransactionModal()" class="w-12 h-12 bg-cyan-400 hover:bg-cyan-300 text-black rounded-full flex items-center justify-center shadow-lg shadow-cyan-400/30 -mt-6">
+            <i class="fa-solid fa-plus text-lg font-bold"></i>
+        </button>
         <button onclick="switchTab('reports')" id="nav-reports" class="nav-item text-gray-500 flex flex-col items-center gap-1 text-[10px] font-bold">
-            <i class="fa-solid fa-chart-pie text-base"></i><span>Отчеты</span>
+            <i class="fa-solid fa-chart-pie text-base"></i><span>Отчет</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="nav-item text-gray-500 flex flex-col items-center gap-1 text-[10px] font-bold">
+            <i class="fa-solid fa-gear text-base"></i><span>Настройки</span>
         </button>
     </nav>
 
@@ -208,6 +239,18 @@
                 </div>
                 <button type="submit" class="w-full bg-cyan-500 text-black font-extrabold py-3 rounded-2xl text-xs shadow-lg shadow-cyan-500/20">Сохранить</button>
             </form>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ВЕЧЕРНИЙ ЧЕК-ИН -->
+    <div id="nightAuditModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl text-xs">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2"><i class="fa-solid fa-moon"></i> Вечерний чек-ин дня</h3>
+                <button onclick="closeNightAuditModal()" class="text-gray-500 hover:text-gray-300"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div id="auditContent" class="space-y-2 bg-gray-950 p-3 rounded-2xl border border-gray-800"></div>
+            <button onclick="closeNightAuditModal()" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2.5 rounded-2xl text-xs">Закрыть аудит</button>
         </div>
     </div>
 
