@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>МТА 24/7 — Учет финансов и жизни</title>
+    <title>МТА 24/7 — Учет финансов</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -26,11 +26,11 @@
                 <i class="fa-solid fa-wallet"></i>
             </div>
             <div>
-                <h2 class="text-lg font-bold text-gray-100">Добро пожаловать в МТА 24/7</h2>
-                <p class="text-xs text-gray-400 mt-1">Введите ваше имя для доступа к личным данным</p>
+                <h2 class="text-lg font-bold text-gray-100">МТА 24/7</h2>
+                <p class="text-xs text-gray-400 mt-1">Введите ваше имя для входа</p>
             </div>
             <form onsubmit="handleLogin(event)" class="space-y-3">
-                <input type="text" id="usernameInput" placeholder="Например: Nurlan или Albek" required
+                <input type="text" id="usernameInput" placeholder="Например: nurlan или albek" required
                     class="w-full bg-gray-950 border border-gray-800 rounded-2xl px-4 py-3 text-xs text-center text-gray-100 focus:outline-none focus:border-cyan-500">
                 <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold py-3 rounded-2xl text-xs transition-all shadow-lg shadow-cyan-500/20">
                     Войти в систему
@@ -48,7 +48,7 @@
             <div>
                 <h1 class="text-xs font-extrabold tracking-wider text-gray-200">МТА 24/7</h1>
                 <div class="text-[10px] text-gray-400 flex items-center gap-1">
-                    <span>Личный капитал</span>
+                    <span>Учет финансов</span>
                 </div>
             </div>
         </div>
@@ -73,7 +73,7 @@
                 <button onclick="changePeriod(1)" class="w-8 h-8 rounded-xl bg-gray-800/80 hover:bg-gray-800 flex items-center justify-center text-gray-300"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
             </div>
 
-            <!-- ГЛАВНАЯ СВОДКА (ДОХОДЫ / РАСХОДЫ / КОШЕЛЬКИ) -->
+            <!-- ГЛАВНАЯ СВОДКА (ДОХОДЫ / РАСХОДЫ) -->
             <div class="grid grid-cols-2 gap-3">
                 <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-3xl space-y-1">
                     <div class="text-[10px] text-gray-400 font-medium">Доходы за месяц</div>
@@ -120,40 +120,13 @@
                 <div id="loansList" class="space-y-2"></div>
             </div>
 
-            <!-- КТО ДОЛЖЕН МНЕ (НОВОЕ) -->
-            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">💳 Кто должен мне</h3>
-                    <button onclick="addNewDebtToMe()" class="text-xs text-cyan-400 font-bold hover:underline">+ Добавить</button>
-                </div>
-                <div id="debtsToMeList" class="space-y-2"></div>
-            </div>
-
             <!-- ФИНАНСОВЫЕ ЦЕЛИ -->
             <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">🎯 Финансовые цели</h3>
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Финансовые цели</h3>
                     <button onclick="addNewGoal()" class="text-xs text-cyan-400 font-bold hover:underline">+ Цель</button>
                 </div>
                 <div id="goalsList" class="space-y-2"></div>
-            </div>
-
-            <!-- МЕЧТЫ НА ГОД (НОВОЕ) -->
-            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">⭐ Мечты на год</h3>
-                    <button onclick="addNewYearDream()" class="text-xs text-purple-400 font-bold hover:underline">+ Добавить</button>
-                </div>
-                <div id="yearDreamsList" class="space-y-2"></div>
-            </div>
-
-            <!-- ЗАДАЧИ ДНЯ / ФОКУС (НОВОЕ) -->
-            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">🎯 Задачи дня</h3>
-                    <button onclick="addNewDailyTask()" class="text-xs text-cyan-400 font-bold hover:underline">+ Задача</button>
-                </div>
-                <div id="dailyTasksList" class="space-y-2"></div>
             </div>
 
             <!-- ПРОГНОЗ КАПИТАЛА -->
@@ -244,7 +217,7 @@
         </div>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: ВЕЧЕРНИЙ ЧЕК-ИН (НОЧНОЙ АУДИТ) -->
+    <!-- МОДАЛЬНОЕ ОКНО: ВЕЧЕРНИЙ ЧЕК-ИН -->
     <div id="nightAuditModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-gray-900 border border-gray-800 w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl text-xs">
             <div class="flex justify-between items-center">
