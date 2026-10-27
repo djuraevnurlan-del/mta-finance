@@ -1,4 +1,4 @@
-// МТА 24/7 — Учет Финансов (Supabase + Multi-User Auth)
+// МТА 24/7 — Учет Финансов + Цели, Долги & Фокус Дня (Supabase + Multi-User Auth)
 
 const SUPABASE_URL = 'https://sztrhecvoyfyuqruujoh.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_T_KVCWo75Uh4P45qUs1KMQ_iEHnQYjO'; 
@@ -26,7 +26,10 @@ let state = {
         { id: 'cat6', name: 'Развлечения', icon: 'fa-film', color: 'bg-fuchsia-500/20 text-fuchsia-400' }
     ],
     loans: [],
+    debtsToMe: [],   // Новое: Кто должен мне
     goals: [],
+    yearDreams: [],  // Новое: Мечты и планы на год
+    dailyTasks: [],  // Новое: Задачи дня
     transactions: []
 };
 
@@ -76,8 +79,16 @@ async function initApp() {
     autoSetCurrentMonth();
     renderUserBadge();
     await loadState();
+    ensureNewStateFields(); // Защита от потери данных у старых юзеров
     renderUI();
     initChart();
+}
+
+// Проверка и инициализация новых полей у старых юзеров
+function ensureNewStateFields() {
+    if (!state.debtsToMe) state.debtsToMe = [];
+    if (!state.yearDreams) state.yearDreams = [];
+    if (!state.dailyTasks) state.dailyTasks = [];
 }
 
 function renderUserBadge() {
@@ -157,7 +168,10 @@ function renderUI() {
     updatePeriodLabel();
     renderPanel();
     renderLoans();
+    renderDebtsToMe();  // Отрисовка "Мне должны"
     renderGoals();
+    renderYearDreams(); // Отрисовка Мечт на год
+    renderDailyTasks(); // Отрисовка Задач дня
     renderForecast();
     renderHistory();
     renderReport();
@@ -293,33 +307,29 @@ function getPeriodPrefix() {
     }
 }
 
+// МОИ ДОЛГИ
 function renderLoans() {
     const list = document.getElementById('loansList');
     if (!list) return;
     list.innerHTML = '';
 
     if (!state.loans || state.loans.length === 0) {
-        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет долгов. Чистый горизонт!</div>';
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет ваших долгов</div>';
         return;
     }
 
     state.loans.forEach(l => {
         let monthsLeft = (l.monthlyPayment && l.monthlyPayment > 0) ? Math.ceil(l.remaining / l.monthlyPayment) : 0;
-
         let el = document.createElement('div');
         el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl space-y-1.5 text-xs';
         el.innerHTML = `
             <div class="flex justify-between items-center">
                 <span class="font-bold text-gray-100">${l.name}</span>
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-rose-400 font-bold">${l.remaining.toLocaleString()} ${state.currency}</span>
-                    <button onclick="promptManageItem('loan', '${l.id}', '${l.name}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
-                </div>
+                <span class="font-mono text-rose-400 font-bold">${l.remaining.toLocaleString()} ${state.currency}</span>
             </div>
-
             <div class="flex justify-between items-center text-[10px] text-gray-400 pt-1 border-t border-gray-800/60">
-                <span>Ежемесячно: <b class="text-gray-200 font-mono">${l.monthlyPayment ? l.monthlyPayment.toLocaleString() : 0} ${state.currency}</b> ${monthsLeft > 0 ? `<span class="text-amber-400 font-semibold ml-1">(~${monthsLeft} мес.)</span>` : ''}</span>
-                <button onclick="payLoan('${l.id}')" class="bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-rose-500/30">Внести платеж</button>
+                <span>Ежемесячно: <b class="text-gray-200">${l.monthlyPayment || 0} ${state.currency}</b> ${monthsLeft > 0 ? `(~${monthsLeft} мес.)` : ''}</span>
+                <button onclick="payLoan('${l.id}')" class="bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded-lg font-bold">Внести</button>
             </div>
         `;
         list.appendChild(el);
@@ -327,11 +337,10 @@ function renderLoans() {
 }
 
 function addNewLoan() {
-    let name = prompt("Название кредита или долга:");
+    let name = prompt("Название кредита или кому вы должны:");
     if (!name) return;
-    let totalAmount = parseFloat(prompt("Общая сумма долга (сом):") || 0);
+    let totalAmount = parseFloat(prompt("Сумма долга (сом):") || 0);
     let monthlyPayment = parseFloat(prompt("Ежемесячный платеж (сом):") || 0);
-
     state.loans.push({ id: 'l_' + Date.now(), name, totalAmount, monthlyPayment, remaining: totalAmount });
     renderUI();
 }
@@ -339,28 +348,56 @@ function addNewLoan() {
 function payLoan(loanId) {
     let loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
-    let paySum = parseFloat(prompt(`Сумма взноса по долгу "${loan.name}" (сом):`, loan.monthlyPayment) || 0);
+    let paySum = parseFloat(prompt(`Сумма взноса по "${loan.name}" (сом):`, loan.monthlyPayment) || 0);
     if (!paySum) return;
-
     loan.remaining = Math.max(0, loan.remaining - paySum);
-    state.transactions.push({
-        id: Date.now(),
-        type: 'expense',
-        amount: paySum,
-        title: `Платеж по долгу: ${loan.name}`,
-        walletId: state.wallets[0]?.id || 'cash',
-        category: '💳 Долги',
-        date: getPeriodPrefix(),
-        fullDate: new Date().toISOString().slice(0, 10)
-    });
-
-    if (loan.remaining === 0) {
-        state.loans = state.loans.filter(l => l.id !== loanId);
-        alert(`🎉 Кредит "${loan.name}" полностью погашен!`);
-    }
+    if (loan.remaining === 0) state.loans = state.loans.filter(l => l.id !== loanId);
     renderUI();
 }
 
+// КТО ДОЛЖЕН МНЕ
+function renderDebtsToMe() {
+    const list = document.getElementById('debtsToMeList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!state.debtsToMe || state.debtsToMe.length === 0) {
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Никто вам не должен</div>';
+        return;
+    }
+
+    state.debtsToMe.forEach(d => {
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-emerald-900/40 p-3 rounded-2xl flex justify-between items-center text-xs';
+        el.innerHTML = `
+            <div>
+                <div class="font-bold text-gray-100">${d.personName}</div>
+                <div class="text-[10px] text-emerald-400 font-mono font-bold">${d.amount.toLocaleString()} ${state.currency}</div>
+            </div>
+            <button onclick="collectDebt('${d.id}')" class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold">Вернул долг</button>
+        `;
+        list.appendChild(el);
+    });
+}
+
+function addNewDebtToMe() {
+    let personName = prompt("Кто взял у вас в долг (Имя):");
+    if (!personName) return;
+    let amount = parseFloat(prompt("Сумма долга (сом):") || 0);
+    if (!amount) return;
+    state.debtsToMe.push({ id: 'dtm_' + Date.now(), personName, amount });
+    renderUI();
+}
+
+function collectDebt(id) {
+    let debt = state.debtsToMe.find(d => d.id === id);
+    if (debt && confirm(`${debt.personName} вернул вам ${debt.amount} ${state.currency}?`)) {
+        state.debtsToMe = state.debtsToMe.filter(d => d.id !== id);
+        renderUI();
+    }
+}
+
+// ЦЕЛИ С РАСЧЕТОМ МЕСЯЦЕВ
 function renderGoals() {
     const list = document.getElementById('goalsList');
     if (!list) return;
@@ -381,19 +418,14 @@ function renderGoals() {
         el.innerHTML = `
             <div class="flex justify-between items-center">
                 <span class="font-bold text-gray-100">${g.name}</span>
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-cyan-400 font-bold">${g.saved.toLocaleString()} / ${g.target.toLocaleString()} ${state.currency}</span>
-                    <button onclick="promptManageItem('goal', '${g.id}', '${g.name}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
-                </div>
+                <span class="font-mono text-cyan-400 font-bold">${g.saved.toLocaleString()} / ${g.target.toLocaleString()} ${state.currency}</span>
             </div>
-            
             <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden border border-gray-800">
-                <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-500" style="width: ${pct}%"></div>
+                <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full" style="width: ${pct}%"></div>
             </div>
-
             <div class="flex justify-between items-center text-[10px] text-gray-400 pt-0.5">
-                <span>Осталось: <b class="text-rose-400 font-mono">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `<span class="text-cyan-400 font-semibold ml-1">(~${monthsLeft} мес.)</span>` : ''}</span>
-                <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-cyan-500/30">+ Пополнить</button>
+                <span>Осталось: <b class="text-rose-400">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `(~${monthsLeft} мес.)` : ''}</span>
+                <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-bold">+ Пополнить</button>
             </div>
         `;
         list.appendChild(el);
@@ -401,12 +433,11 @@ function renderGoals() {
 }
 
 function addNewGoal() {
-    let name = prompt("Название цели (например: Smart Watch):");
+    let name = prompt("Название финансовой цели:");
     if (!name) return;
     let target = parseFloat(prompt("Стоимость цели (сом):") || 0);
     if (!target) return;
     let pledge = parseFloat(prompt("Сколько откладывать в месяц (сом):") || 2000);
-
     state.goals.push({ id: 'g_' + Date.now(), name, target, saved: 0, monthlyPledge: pledge });
     renderUI();
 }
@@ -414,22 +445,91 @@ function addNewGoal() {
 function depositToGoal(goalId) {
     let amount = parseFloat(prompt("Сколько отложить в копилку (сом)?") || 0);
     if (!amount) return;
-
     let goal = state.goals.find(g => g.id === goalId);
     if (goal) {
         goal.saved += amount;
-        state.transactions.push({
-            id: Date.now(),
-            type: 'expense',
-            amount: amount,
-            title: `Копилка: ${goal.name}`,
-            walletId: state.wallets[0]?.id || 'cash',
-            category: '🎯 Цели',
-            date: getPeriodPrefix(),
-            fullDate: new Date().toISOString().slice(0, 10)
-        });
         renderUI();
     }
+}
+
+// МЕЧТЫ НА ГОД
+function renderYearDreams() {
+    const list = document.getElementById('yearDreamsList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!state.yearDreams || state.yearDreams.length === 0) {
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет главных планов на год</div>';
+        return;
+    }
+
+    state.yearDreams.forEach(dream => {
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-purple-900/40 p-3 rounded-2xl flex justify-between items-center text-xs';
+        el.innerHTML = `
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-star text-purple-400"></i>
+                <span class="text-gray-200 font-medium">${dream.title}</span>
+            </div>
+            <button onclick="deleteDream('${dream.id}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-xmark"></i></button>
+        `;
+        list.appendChild(el);
+    });
+}
+
+function addNewYearDream() {
+    let title = prompt("Ваша мечта или главная цель на этот год:");
+    if (!title) return;
+    state.yearDreams.push({ id: 'yd_' + Date.now(), title });
+    renderUI();
+}
+
+function deleteDream(id) {
+    state.yearDreams = state.yearDreams.filter(d => d.id !== id);
+    renderUI();
+}
+
+// ЗАДАЧИ ДНЯ
+function renderDailyTasks() {
+    const list = document.getElementById('dailyTasksList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!state.dailyTasks || state.dailyTasks.length === 0) {
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет задач на сегодня</div>';
+        return;
+    }
+
+    state.dailyTasks.forEach(task => {
+        let el = document.createElement('div');
+        el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex justify-between items-center text-xs';
+        el.innerHTML = `
+            <div class="flex items-center gap-2.5">
+                <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask('${task.id}')" class="rounded accent-cyan-500">
+                <span class="${task.done ? 'line-through text-gray-500' : 'text-gray-200'}">${task.title}</span>
+            </div>
+            <button onclick="deleteTask('${task.id}')" class="text-gray-600 hover:text-rose-400"><i class="fa-solid fa-trash text-[10px]"></i></button>
+        `;
+        list.appendChild(el);
+    });
+}
+
+function addNewDailyTask() {
+    let title = prompt("Задача на сегодня:");
+    if (!title) return;
+    state.dailyTasks.push({ id: 'dt_' + Date.now(), title, done: false });
+    renderUI();
+}
+
+function toggleTask(id) {
+    let task = state.dailyTasks.find(t => t.id === id);
+    if (task) task.done = !task.done;
+    renderUI();
+}
+
+function deleteTask(id) {
+    state.dailyTasks = state.dailyTasks.filter(t => t.id !== id);
+    renderUI();
 }
 
 function openNightAuditModal() {
@@ -467,7 +567,6 @@ function renderForecast() {
 
     let inc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     let exp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    
     let monthlySavings = Math.max(0, inc - exp);
     let yearForecast = monthlySavings * 12;
 
