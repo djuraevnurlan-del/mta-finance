@@ -1,286 +1,273 @@
-<!-- ЭКРАН АВТОРИЗАЦИИ / ВХОДА -->
-<div id="authScreen" class="fixed inset-0 z-50 bg-gray-950 flex items-center justify-center p-4">
-    <div class="bg-gray-900 border border-gray-800 p-6 rounded-3xl max-w-sm w-full text-center space-y-4 shadow-2xl">
-        <div class="w-16 h-16 bg-cyan-500/20 text-cyan-400 rounded-full flex items-center justify-center mx-auto text-2xl font-bold border border-cyan-500/30">
-            <i class="fa-solid fa-wallet"></i>
-        </div>
-        <div>
-            <h2 class="text-xl font-bold text-gray-100">МТА 24/7</h2>
-            <p class="text-xs text-gray-400 mt-1">Введите ваше имя или логин для входа в личный кабинет</p>
-        </div>
-        <form onsubmit="handleLogin(event)" class="space-y-3">
-            <input type="text" id="usernameInput" placeholder="Например: nurlan" required 
-                   class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-cyan-500 transition-colors text-center">
-            <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-extrabold py-3 rounded-xl hover:opacity-90 transition-opacity">
-                Войти в кабинет
-            </button>
-        </form>
-    </div>
-</div>
 <!DOCTYPE html>
-<html lang="ru" class="dark">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>МТА 24/7 — Учет Финансов</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>МТА 24/7 — Учет финансов и жизни</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="css/styles.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #030712; color: #f3f4f6; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
 </head>
-<body class="bg-black text-gray-100 antialiased min-h-screen pb-28 select-none">
+<body class="bg-gray-950 min-h-screen text-gray-100 flex flex-col items-center justify-start pb-24">
 
-    <!-- ВЕРХНЯЯ ПАНЕЛЬ С ВЫБОРОМ МЕСЯЦА И ЛОГОТИПОМ -->
-    <header class="sticky top-0 z-40 backdrop-blur-xl bg-gray-950/90 border-b border-gray-800/80 px-4 py-3">
-        <div class="max-w-md mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg glow-cyan">
-                    <i class="fa-solid fa-mountain text-lg"></i>
+    <!-- ЭКРАН АВТОРИЗАЦИИ (ВХОД ПО ИМЕНИ) -->
+    <div id="authScreen" class="fixed inset-0 bg-gray-950 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 p-6 rounded-3xl w-full max-w-sm space-y-4 text-center shadow-2xl">
+            <div class="w-12 h-12 bg-cyan-500/20 text-cyan-400 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-100">Добро пожаловать в МТА 24/7</h2>
+                <p class="text-xs text-gray-400 mt-1">Введите ваше имя для доступа к личным данным</p>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-3">
+                <input type="text" id="usernameInput" placeholder="Например: Nurlan или Albek" required
+                    class="w-full bg-gray-950 border border-gray-800 rounded-2xl px-4 py-3 text-xs text-center text-gray-100 focus:outline-none focus:border-cyan-500">
+                <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold py-3 rounded-2xl text-xs transition-all shadow-lg shadow-cyan-500/20">
+                    Войти в систему
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ШАПКА ПРИЛОЖЕНИЯ -->
+    <header class="w-full max-w-md px-4 pt-4 pb-2 flex justify-between items-center">
+        <div class="flex items-center gap-2.5" id="userNameDisplay">
+            <div class="w-9 h-9 bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 rounded-2xl flex items-center justify-center font-bold text-sm">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div>
+                <h1 class="text-xs font-extrabold tracking-wider text-gray-200">МТА 24/7</h1>
+                <div class="text-[10px] text-gray-400 flex items-center gap-1">
+                    <span>Личный капитал</span>
                 </div>
-                <h1 class="font-black text-lg tracking-wider text-gray-100">МТА 24/7</h1>
             </div>
-
-            <!-- ВЫБОР ПЕРИОДА (МЕСЯЦА) -->
-            <div class="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-xl px-2 py-1">
-                <button onclick="changePeriod(-1)" class="text-gray-400 hover:text-white px-1.5 py-0.5"><i class="fa-solid fa-chevron-left text-xs"></i></button>
-                <span id="currentPeriodLabel" class="text-xs font-bold text-cyan-400 px-1 font-mono">ОКТЯБРЬ 2026</span>
-                <button onclick="changePeriod(1)" class="text-gray-400 hover:text-white px-1.5 py-0.5"><i class="fa-solid fa-chevron-right text-xs"></i></button>
-            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="openNightAuditModal()" class="bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-xl text-xs text-amber-400 font-bold hover:bg-gray-800 flex items-center gap-1.5" title="Вечерний чек-ин">
+                <i class="fa-solid fa-moon"></i>
+                <span class="text-[10px]">Итог дня</span>
+            </button>
         </div>
     </header>
 
     <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
-    <main class="max-w-md mx-auto px-4 mt-4 space-y-5">
+    <main class="w-full max-w-md px-4 space-y-4">
 
-        <!-- ВКЛАДКА 1: ПАНЕЛЬ (ГЛАВНАЯ) -->
-        <div id="tab-panel" class="tab-content space-y-5">
+        <!-- ВКЛАДКА 1: ДЭШБОРД (ГЛАВНАЯ) -->
+        <div id="tab-dashboard" class="tab-content space-y-4">
             
-            <!-- БЛОК 1: ДОХОДЫ -->
-            <section class="space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Доходы за месяц</span>
-                    <span id="totalIncomeHeader" class="text-sm font-black font-mono text-emerald-400">0 сом</span>
+            <!-- ПЕРЕКЛЮЧАТЕЛЬ МЕСЯЦЕВ -->
+            <div class="bg-gray-900/80 border border-gray-800/80 p-2.5 rounded-2xl flex justify-between items-center text-xs">
+                <button onclick="changePeriod(-1)" class="w-8 h-8 rounded-xl bg-gray-800/80 hover:bg-gray-800 flex items-center justify-center text-gray-300"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                <div class="font-extrabold text-cyan-400 tracking-wide text-xs" id="currentPeriodLabel">ЯНВАРЬ 2026</div>
+                <button onclick="changePeriod(1)" class="w-8 h-8 rounded-xl bg-gray-800/80 hover:bg-gray-800 flex items-center justify-center text-gray-300"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+            </div>
+
+            <!-- ГЛАВНАЯ СВОДКА (ДОХОДЫ / РАСХОДЫ / КОШЕЛЬКИ) -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-3xl space-y-1">
+                    <div class="text-[10px] text-gray-400 font-medium">Доходы за месяц</div>
+                    <div class="text-sm font-mono font-bold text-emerald-400" id="totalIncomeHeader">0 KGS</div>
                 </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-3xl space-y-1">
+                    <div class="text-[10px] text-gray-400 font-medium">Расходы за месяц</div>
+                    <div class="text-sm font-mono font-bold text-rose-400" id="totalExpenseHeader">0 KGS</div>
+                </div>
+            </div>
+
+            <!-- КОШЕЛЬКИ -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Кошельки и балансы</h3>
+                    <span class="text-xs font-mono font-bold text-cyan-400" id="totalWalletHeader">0 KGS</span>
+                </div>
+                <div id="walletList" class="space-y-2"></div>
+            </div>
+
+            <!-- ДОХОДЫ (КАТЕГОРИИ) -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Источники доходов</h3>
                 <div id="incomeList" class="grid grid-cols-3 gap-2"></div>
-            </section>
+            </div>
 
-            <!-- БЛОК 2: КОШЕЛЬКИ (СЧЕТА) -->
-            <section class="space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Мои Кошельки</span>
-                    <span id="totalWalletHeader" class="text-sm font-black font-mono text-cyan-400">0 сом</span>
-                </div>
-                <div id="walletList" class="grid grid-cols-2 gap-2"></div>
-            </section>
+            <!-- КАТЕГОРИИ РАСХОДОВ -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Категории расходов</h3>
+                <div id="categoryGrid" class="grid grid-cols-3 gap-2"></div>
+            </div>
 
-            <!-- БЛОК 3: КРЕДИТЫ И ДОЛГИ (НОВЫЙ МОДУЛЬ) -->
-            <section class="space-y-2">
+            <!-- КНОПКА ДОБАВИТЬ ТРАЗАКЦИЮ -->
+            <button onclick="openAddTransactionModal()" class="w-full bg-gradient-to-r from-cyan-500 to-emerald-400 text-black font-extrabold py-3.5 rounded-3xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10">
+                <i class="fa-solid fa-plus text-sm"></i> Добавить операцию
+            </button>
+
+            <!-- КРЕДИТЫ И ДОЛГИ -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-rose-400 uppercase tracking-wider">💳 Кредиты & Долги</span>
-                    <button onclick="addNewLoan()" class="text-[11px] text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg hover:bg-rose-500/20">+ Добавить долг</button>
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Кредиты и долги</h3>
+                    <button onclick="addNewLoan()" class="text-xs text-rose-400 font-bold hover:underline">+ Добавить</button>
                 </div>
                 <div id="loansList" class="space-y-2"></div>
-            </section>
-
-            <!-- БЛОК 4: ШТУРМ ВЕРШИН (ЦЕЛИ И НАКОПЛЕНИЯ) -->
-            <section class="space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">🎯 Штурм Вершин (Цели)</span>
-                    <button onclick="addNewGoal()" class="text-[11px] text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-lg hover:bg-cyan-500/20">+ Добавить цель</button>
-                </div>
-                <div id="goalsList" class="space-y-2.5"></div>
-            </section>
-
-            <!-- БЛОК 5: ГОДОВОЙ ФИНАНСОВЫЙ ПРОГНОЗ (НОВЫЙ РАСЧЕТ В ГОД) -->
-            <section class="bg-gradient-to-r from-emerald-950/40 via-gray-900 to-cyan-950/40 border border-emerald-500/30 p-3.5 rounded-2xl space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-chart-line"></i> Прогноз накоплений за 1 год</span>
-                    <span id="forecastYearTotal" class="text-sm font-black font-mono text-emerald-300">0 сом</span>
-                </div>
-                <p class="text-[10px] text-gray-400" id="forecastDescText">Если сохранять текущую разницу доходов и трат, за 12 месяцев отложится указанная сумма.</p>
-            </section>
-
-            <!-- БЛОК 6: РАСХОДЫ ПО КАТЕГОРИЯМ -->
-            <section class="space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Расходы за месяц</span>
-                    <span id="totalExpenseHeader" class="text-sm font-black font-mono text-rose-400">0 сом</span>
-                </div>
-                <div id="categoryGrid" class="grid grid-cols-3 gap-2"></div>
-            </section>
-
-            <!-- КНОПКА ВЕЧЕРНЕГО ЧЕК-ИНА -->
-            <button onclick="openNightAuditModal()" class="w-full bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-cyan-900/40 border border-indigo-500/30 hover:border-cyan-400/50 p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all shadow-lg active:scale-98">
-                <div class="flex items-center gap-2.5 text-indigo-300">
-                    <i class="fa-solid fa-moon text-amber-400 text-sm"></i>
-                    <span>Вечерний Чек-ин Дня</span>
-                </div>
-                <span class="text-cyan-400 font-mono">Завершить день →</span>
-            </button>
-        </div>
-
-        <!-- ВКЛАДКА 2: ИСТОРИЯ -->
-        <div id="tab-history" class="tab-content hidden space-y-3">
-            <div class="flex justify-between items-center bg-gray-900/80 p-3 rounded-2xl border border-gray-800">
-                <span class="text-xs font-bold text-gray-400">Итоговый остаток месяца:</span>
-                <span id="historySaldo" class="text-sm font-black font-mono text-cyan-400">0 сом</span>
             </div>
-            <div id="historyList" class="space-y-2 max-h-[500px] overflow-y-auto"></div>
+
+            <!-- КТО ДОЛЖЕН МНЕ (НОВОЕ) -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">💳 Кто должен мне</h3>
+                    <button onclick="addNewDebtToMe()" class="text-xs text-cyan-400 font-bold hover:underline">+ Добавить</button>
+                </div>
+                <div id="debtsToMeList" class="space-y-2"></div>
+            </div>
+
+            <!-- ФИНАНСОВЫЕ ЦЕЛИ -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">🎯 Финансовые цели</h3>
+                    <button onclick="addNewGoal()" class="text-xs text-cyan-400 font-bold hover:underline">+ Цель</button>
+                </div>
+                <div id="goalsList" class="space-y-2"></div>
+            </div>
+
+            <!-- МЕЧТЫ НА ГОД (НОВОЕ) -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">⭐ Мечты на год</h3>
+                    <button onclick="addNewYearDream()" class="text-xs text-purple-400 font-bold hover:underline">+ Добавить</button>
+                </div>
+                <div id="yearDreamsList" class="space-y-2"></div>
+            </div>
+
+            <!-- ЗАДАЧИ ДНЯ / ФОКУС (НОВОЕ) -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">🎯 Задачи дня</h3>
+                    <button onclick="addNewDailyTask()" class="text-xs text-cyan-400 font-bold hover:underline">+ Задача</button>
+                </div>
+                <div id="dailyTasksList" class="space-y-2"></div>
+            </div>
+
+            <!-- ПРОГНОЗ КАПИТАЛА -->
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-2">
+                <div class="text-[10px] text-gray-400 uppercase font-semibold">Прогноз на 12 месяцев</div>
+                <div class="text-lg font-mono font-extrabold text-cyan-400" id="forecastYearTotal">0 KGS</div>
+                <p class="text-[11px] text-gray-400 leading-relaxed" id="forecastDescText">Накопительный прогноз строится на основе ваших текущих доходов и расходов за месяц.</p>
+            </div>
+
         </div>
 
-        <!-- ВКЛАДКА 3: ОТЧЕТ И ГРАФИКИ (ИСПРАВЛЕН) -->
+        <!-- ВКЛАДКА 2: ИСТОРИЯ ОПЕРАЦИЙ -->
+        <div id="tab-history" class="tab-content hidden space-y-4">
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">История за период</h3>
+                    <span class="text-xs font-mono font-bold text-cyan-400" id="historySaldo">0 KGS</span>
+                </div>
+                <div id="historyList" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <!-- ВКЛАДКА 3: АНАЛИТИКА / ОТЧЕТЫ -->
         <div id="tab-reports" class="tab-content hidden space-y-4">
-            <div class="flex bg-gray-900 border border-gray-800 p-1 rounded-xl text-xs font-bold text-center">
-                <button onclick="setReportType('day')" class="flex-1 py-1.5 rounded-lg text-gray-400" id="repBtnDay">День</button>
-                <button onclick="setReportType('month')" class="flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold" id="repBtnMonth">Месяц</button>
-                <button onclick="setReportType('year')" class="flex-1 py-1.5 rounded-lg text-gray-400" id="repBtnYear">Год</button>
-            </div>
-
-            <div class="bg-gray-900/90 p-4 rounded-2xl border border-gray-800 space-y-3">
-                <div class="text-xs font-bold text-cyan-400 text-center font-mono" id="reportTitleHeader">Анализ расходов</div>
-                <div class="h-48 relative">
+            <div class="bg-gray-950 border border-gray-800 p-4 rounded-3xl space-y-4">
+                <div class="flex gap-1 bg-gray-900 p-1 rounded-2xl">
+                    <button onclick="setReportType('day')" id="repBtnDay" class="flex-1 py-1.5 rounded-xl text-xs text-gray-400 font-bold">День</button>
+                    <button onclick="setReportType('month')" id="repBtnMonth" class="flex-1 py-1.5 rounded-xl text-xs bg-cyan-500 text-black font-extrabold">Месяц</button>
+                    <button onclick="setReportType('year')" id="repBtnYear" class="flex-1 py-1.5 rounded-xl text-xs text-gray-400 font-bold">Год</button>
+                </div>
+                <div class="h-48 relative flex items-center justify-center">
                     <canvas id="reportChart"></canvas>
                 </div>
-                <div id="reportBreakdown" class="space-y-1.5 text-xs"></div>
-            </div>
-        </div>
-
-        <!-- ВКЛАДКА 4: НАСТРОЙКИ & КАЛЬКУЛЯТОР -->
-        <div id="tab-settings" class="tab-content hidden space-y-4">
-            <div class="bg-gray-900/90 p-4 rounded-2xl border border-gray-800 space-y-4 text-xs">
-                <h3 class="font-bold text-sm text-gray-200 border-b border-gray-800 pb-2">Основные настройки</h3>
-                
-                <div class="flex justify-between items-center">
-                    <span>Основная валюта:</span>
-                    <select id="settingCurrency" onchange="updateSettings()" class="bg-gray-950 border border-gray-800 rounded-lg px-2 py-1 text-cyan-400 font-bold">
-                        <option value="KGS">KGS (Сом)</option>
-                        <option value="USD">USD ($)</option>
-                        <option value="RUB">RUB (₽)</option>
-                    </select>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <span>Дневной лимит расходов:</span>
-                    <input type="number" id="settingDailyLimit" onchange="updateSettings()" class="w-24 bg-gray-950 border border-gray-800 rounded-lg px-2 py-1 font-mono text-cyan-400 font-bold text-right">
-                </div>
-
-                <!-- КАЛЬКУЛЯТОР ВАЛЮТ -->
-                <div class="pt-3 border-t border-gray-800 space-y-2">
-                    <h4 class="font-bold text-cyan-400">🧮 Калькулятор валют</h4>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[10px] text-gray-400 block mb-0.5">Курс USD к Сому:</label>
-                            <input type="number" id="usdRate" value="87.5" oninput="calcExchange()" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1 font-mono text-gray-200">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-gray-400 block mb-0.5">Сумма в USD ($):</label>
-                            <input type="number" id="calcUsdInput" placeholder="100" oninput="calcExchange()" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1 font-mono text-emerald-400 font-bold">
-                        </div>
-                    </div>
-                    <div class="bg-gray-950 p-2 rounded-xl text-center font-mono font-bold text-cyan-400 text-xs" id="calcResultDisplay">
-                        100 $ = 8 750 сом
-                    </div>
-                </div>
-
-                <div class="pt-2">
-                    <button onclick="resetData()" class="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 py-2.5 rounded-xl font-bold transition-all">
-                        🗑️ Сбросить все данные
-                    </button>
+                <div>
+                    <h4 class="text-xs font-bold text-gray-300 mb-2" id="reportTitleHeader">Детализация</h4>
+                    <div id="reportBreakdown" class="space-y-2 text-xs"></div>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- НИЖНЯЯ НАВИГАЦИОННАЯ ПАНЕЛЬ С КНОПКОЙ «+» -->
-    <nav class="fixed bottom-0 inset-x-0 bg-gray-950/95 backdrop-blur-xl border-t border-gray-800/80 z-40 py-2 px-4">
-        <div class="max-w-md mx-auto flex justify-between items-center text-[10px] font-bold text-gray-400">
-            <button onclick="switchTab('panel')" id="nav-panel" class="nav-item flex flex-col items-center gap-1 text-cyan-400">
-                <i class="fa-solid fa-grid-2 text-base"></i>
-                <span>Панель</span>
-            </button>
-            <button onclick="switchTab('history')" id="nav-history" class="nav-item flex flex-col items-center gap-1 hover:text-gray-200">
-                <i class="fa-solid fa-list-ul text-base"></i>
-                <span>История</span>
-            </button>
-
-            <button onclick="openAddTransactionModal()" class="w-12 h-12 -mt-5 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 text-white text-xl flex items-center justify-center shadow-xl glow-cyan active:scale-90 transition-all border-2 border-black">
-                <i class="fa-solid fa-plus"></i>
-            </button>
-
-            <button onclick="switchTab('reports')" id="nav-reports" class="nav-item flex flex-col items-center gap-1 hover:text-gray-200">
-                <i class="fa-solid fa-chart-pie text-base"></i>
-                <span>Отчет</span>
-            </button>
-            <button onclick="switchTab('settings')" id="nav-settings" class="nav-item flex flex-col items-center gap-1 hover:text-gray-200">
-                <i class="fa-solid fa-gear text-base"></i>
-                <span>Настройки</span>
-            </button>
-        </div>
+    <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
+    <nav class="fixed bottom-0 w-full max-w-md bg-gray-950/90 backdrop-blur-md border-t border-gray-900 py-3 px-6 flex justify-around items-center z-40">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item text-cyan-400 flex flex-col items-center gap-1 text-[10px] font-bold">
+            <i class="fa-solid fa-house text-base"></i><span>Панель</span>
+        </button>
+        <button onclick="switchTab('history')" id="nav-history" class="nav-item text-gray-500 flex flex-col items-center gap-1 text-[10px] font-bold">
+            <i class="fa-solid fa-list-ul text-base"></i><span>История</span>
+        </button>
+        <button onclick="switchTab('reports')" id="nav-reports" class="nav-item text-gray-500 flex flex-col items-center gap-1 text-[10px] font-bold">
+            <i class="fa-solid fa-chart-pie text-base"></i><span>Отчеты</span>
+        </button>
     </nav>
 
-    <!-- МОДАЛЬНЫЕ ОКНА -->
-    <div id="addModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
-        <div class="bg-gray-900 border border-gray-800 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
-                <div class="flex bg-gray-950 p-1 rounded-xl border border-gray-800 w-48 text-xs font-bold">
-                    <button type="button" onclick="setTxType('expense')" id="txTypeExp" class="flex-1 py-1 rounded-lg bg-rose-500 text-white font-extrabold">Расход</button>
-                    <button type="button" onclick="setTxType('income')" id="txTypeInc" class="flex-1 py-1 rounded-lg text-gray-400">Доход</button>
-                </div>
-                <button onclick="closeAddModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+    <!-- МОДАЛЬНОЕ ОКНО: ДОБАВЛЕНИЕ ОПЕРАЦИИ -->
+    <div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-gray-900 border border-gray-800 w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-gray-100">Новая операция</h3>
+                <button onclick="closeAddModal()" class="text-gray-500 hover:text-gray-300"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
-
-            <form onsubmit="handleSaveTransaction(event)" class="space-y-3 text-xs">
+            <div class="flex gap-1 bg-gray-950 p-1 rounded-2xl border border-gray-800">
+                <button type="button" onclick="setTxType('expense')" id="txTypeExp" class="flex-1 py-1.5 rounded-xl bg-rose-500 text-white font-extrabold text-xs">Расход</button>
+                <button type="button" onclick="setTxType('income')" id="txTypeInc" class="flex-1 py-1.5 rounded-xl text-gray-400 text-xs">Доход</button>
+            </div>
+            <form onsubmit="handleSaveTransaction(event)" class="space-y-3">
                 <div>
-                    <label class="text-gray-400 block mb-1">Сумма (сом):</label>
-                    <input type="number" id="txAmount" placeholder="0" required autofocus class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-lg font-mono text-cyan-400 font-bold focus:outline-none focus:border-cyan-500">
+                    <label class="text-[10px] text-gray-400 font-medium">Сумма (сом)</label>
+                    <input type="number" id="txAmount" placeholder="0" required class="w-full bg-gray-950 border border-gray-800 rounded-2xl px-3 py-2.5 text-xs text-gray-100 font-mono">
                 </div>
-
                 <div>
-                    <label class="text-gray-400 block mb-1">Название / Примечание:</label>
-                    <input type="text" id="txTitle" placeholder="Например: Продукты, Зарплата" required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-gray-200 focus:outline-none focus:border-cyan-500">
+                    <label class="text-[10px] text-gray-400 font-medium">Название / Описание</label>
+                    <input type="text" id="txTitle" placeholder="Например: Обед или Зарплата" required class="w-full bg-gray-950 border border-gray-800 rounded-2xl px-3 py-2.5 text-xs text-gray-100">
                 </div>
-
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="text-gray-400 block mb-1">Кошелек:</label>
-                        <select id="txWallet" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-gray-200 font-semibold focus:outline-none"></select>
+                        <label class="text-[10px] text-gray-400 font-medium">Кошелек</label>
+                        <select id="txWallet" class="w-full bg-gray-950 border border-gray-800 rounded-2xl px-3 py-2.5 text-xs text-gray-100"></select>
                     </div>
                     <div>
-                        <label class="text-gray-400 block mb-1">Категория:</label>
-                        <select id="txCategory" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-gray-200 font-semibold focus:outline-none"></select>
+                        <label class="text-[10px] text-gray-400 font-medium">Категория</label>
+                        <select id="txCategory" class="w-full bg-gray-950 border border-gray-800 rounded-2xl px-3 py-2.5 text-xs text-gray-100"></select>
                     </div>
                 </div>
-
-                <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold py-3 rounded-xl transition-all shadow-lg text-sm mt-2">
-                    Сохранить операцию
-                </button>
+                <button type="submit" class="w-full bg-cyan-500 text-black font-extrabold py-3 rounded-2xl text-xs shadow-lg shadow-cyan-500/20">Сохранить</button>
             </form>
         </div>
     </div>
 
-    <!-- МОДАЛКА УДАЛЕНИЯ -->
-    <div id="manageItemModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-xs w-full p-4 space-y-3 text-center text-xs">
-            <h3 class="font-bold text-gray-100 text-sm" id="manageItemTitle">Управление элементом</h3>
-            <p class="text-gray-400">Удалить этот элемент?</p>
-            <div class="space-y-2 pt-2">
-                <button onclick="confirmDeleteItem()" class="w-full bg-rose-500/20 text-rose-400 border border-rose-500/30 py-2 rounded-xl font-bold">🗑️ Удалить</button>
-                <button onclick="closeManageModal()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-xl font-bold">Отмена</button>
+    <!-- МОДАЛЬНОЕ ОКНО: ВЕЧЕРНИЙ ЧЕК-ИН (НОЧНОЙ АУДИТ) -->
+    <div id="nightAuditModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl text-xs">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2"><i class="fa-solid fa-moon"></i> Вечерний чек-ин дня</h3>
+                <button onclick="closeNightAuditModal()" class="text-gray-500 hover:text-gray-300"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div id="auditContent" class="space-y-2 bg-gray-950 p-3 rounded-2xl border border-gray-800"></div>
+            <button onclick="closeNightAuditModal()" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2.5 rounded-2xl text-xs">Закрыть аудит</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: УДАЛЕНИЕ ЭЛЕМЕНТА -->
+    <div id="manageItemModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 w-full max-w-xs rounded-3xl p-5 space-y-4 text-center shadow-2xl">
+            <h3 id="manageItemTitle" class="text-xs font-bold text-gray-100">Удалить элемент?</h3>
+            <div class="flex gap-2">
+                <button onclick="confirmDeleteItem()" class="flex-1 bg-rose-500 text-white font-bold py-2.5 rounded-2xl text-xs">Да, удалить</button>
+                <button onclick="closeManageModal()" class="flex-1 bg-gray-800 text-gray-300 font-bold py-2.5 rounded-2xl text-xs">Отмена</button>
             </div>
         </div>
     </div>
 
-    <!-- МОДАЛКА ВЕЧЕРНЕГО ЧЕК-ИНА -->
-    <div id="nightAuditModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
-        <div class="glass p-5 rounded-3xl border border-indigo-500/40 max-w-sm w-full space-y-4 text-center">
-            <div class="w-14 h-14 rounded-2xl bg-indigo-600/20 text-amber-400 text-2xl flex items-center justify-center mx-auto border border-indigo-500/30">🌙</div>
-            <h3 class="font-black text-base text-gray-100">Вечерний Чек-ин МТА 24/7</h3>
-            <div id="auditContent" class="text-xs text-gray-300 space-y-2 bg-gray-950/80 p-3 rounded-2xl border border-gray-800 text-left"></div>
-            <button onclick="closeNightAuditModal()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs">Понятно, продолжать!</button>
-        </div>
-    </div>
-
+    <!-- Подключаем основной скрипт -->
     <script src="js/app.js"></script>
 </body>
 </html>
