@@ -4,6 +4,7 @@ const SUPABASE_URL = 'https://sztrhecvoyfyuqruujoh.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_T_KVCWo75Uh4P45qUs1KMQ_iEHnQYjO'; 
 
 let currentUser = localStorage.getItem('mta_current_user') || null;
+
 let state = {
     currentDate: new Date(),
     currency: 'KGS',
