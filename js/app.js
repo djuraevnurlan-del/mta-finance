@@ -1,21 +1,24 @@
-// МТА 24/7 — Учет Финансов (Supabase + Multi-User)
+// МТА 24/7 — Учет финансов (Supabase + Multi-User Auth + Settings Tab)
 
 const SUPABASE_URL = 'https://sztrhecvoyfyuqruujoh.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_T_KVCWo75Uh4P45qUs1KMQ_iEHnQYjO'; 
 
-let currentUser = localStorage.getItem('mta_current_user') || 'nurlan';
+let currentUser = localStorage.getItem('mta_current_user') || null;
 
 let state = {
     currentDate: new Date(),
     currency: 'KGS',
     dailyLimit: 2500,
     wallets: [
-        { id: 'cash', name: 'Наличные', icon: 'fa-wallet', color: 'bg-cyan-500/20 text-cyan-400', balance: 5000 },
-        { id: 'card', name: 'Карта VISA', icon: 'fa-credit-card', color: 'bg-rose-500/20 text-rose-400', balance: 15000 }
+        { id: 'cash', name: 'Наличные', icon: 'fa-wallet', color: 'bg-cyan-500/20 text-cyan-400', balance: 0 },
+        { id: 'card', name: 'Карта VISA', icon: 'fa-credit-card', color: 'bg-rose-500/20 text-rose-400', balance: 0 }
     ],
     incomes: [
         { id: 'inc1', name: 'Зарплата', icon: 'fa-money-bill-wave', color: 'bg-emerald-500/20 text-emerald-400' },
-        { id: 'inc2', name: 'Фриланс', icon: 'fa-briefcase', color: 'bg-blue-500/20 text-blue-400' }
+        { id: 'inc2', name: 'Бизнес', icon: 'fa-briefcase', color: 'bg-blue-500/20 text-blue-400' },
+        { id: 'inc3', name: 'Банк', icon: 'fa-building-columns', color: 'bg-purple-500/20 text-purple-400' },
+        { id: 'inc4', name: 'Премия и чаевые', icon: 'fa-gift', color: 'bg-amber-500/20 text-amber-400' },
+        { id: 'inc5', name: 'На чёрный день', icon: 'fa-shield-halved', color: 'bg-teal-500/20 text-teal-400' }
     ],
     categories: [
         { id: 'cat1', name: 'Продукты', icon: 'fa-cart-shopping', color: 'bg-sky-500/20 text-sky-400' },
@@ -36,37 +39,57 @@ let reportChartInstance = null;
 let itemToDelete = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    checkAuthStatus();
+});
+
+function checkAuthStatus() {
+    const authEl = document.getElementById('authScreen');
+    currentUser = localStorage.getItem('mta_current_user');
+
+    if (!currentUser || currentUser === 'null' || currentUser === 'undefined' || currentUser.trim() === '') {
+        currentUser = null;
+        if (authEl) authEl.classList.remove('hidden');
+    } else {
+        if (authEl) authEl.classList.add('hidden');
+        initApp();
+    }
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const input = document.getElementById('usernameInput');
+    if (!input || !input.value.trim()) return;
+
+    currentUser = input.value.trim().toLowerCase();
+    localStorage.setItem('mta_current_user', currentUser);
+
     const authEl = document.getElementById('authScreen');
     if (authEl) authEl.classList.add('hidden');
 
+    await initApp();
+}
+
+function logoutUser() {
+    localStorage.removeItem('mta_current_user');
+    currentUser = null;
+    location.reload();
+}
+
+async function initApp() {
     autoSetCurrentMonth();
-    renderUserSwitcher();
+    updateSettingsUserDisplay();
     await loadState();
     renderUI();
     initChart();
-});
-
-// Переключатель пользователей (Ты и Брат)
-function renderUserSwitcher() {
-    const nameDisp = document.getElementById('userNameDisplay');
-    if (!nameDisp) return;
-    
-    nameDisp.innerHTML = `
-        <select id="userSelect" onchange="switchUser(this.value)" class="bg-gray-900 text-cyan-400 border border-gray-800 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none cursor-pointer">
-            <option value="nurlan" ${currentUser === 'nurlan' ? 'selected' : ''}>👤 Нурлан</option>
-            <option value="brother" ${currentUser === 'brother' ? 'selected' : ''}>👤 Брат (МТА)</option>
-        </select>
-    `;
 }
 
-async function switchUser(newUser) {
-    currentUser = newUser;
-    localStorage.setItem('mta_current_user', currentUser);
-    await loadState();
-    renderUI();
+function updateSettingsUserDisplay() {
+    const disp = document.getElementById('settingsUserDisplay');
+    if (disp && currentUser) {
+        disp.innerText = currentUser.toUpperCase();
+    }
 }
 
-// Загрузка изолированных данных конкретного пользователя из Supabase
 async function loadState() {
     try {
         let response = await fetch(`${SUPABASE_URL}/rest/v1/user_data?user_id=eq.${currentUser}&select=data`, {
@@ -80,15 +103,11 @@ async function loadState() {
             if (resData && resData.length > 0 && resData[0].data) {
                 state = { ...state, ...resData[0].data };
                 state.currentDate = new Date();
-                console.log(`🟢 Supabase загружен успешно для: ${currentUser}`);
                 return;
             }
         }
-    } catch (e) {
-        console.log('Ошибка сети с Supabase, используем локальную память');
-    }
+    } catch (e) {}
     
-    // Резервная память локально
     const saved = localStorage.getItem(`mta_247_${currentUser}`);
     if (saved) {
         try {
@@ -98,8 +117,8 @@ async function loadState() {
     }
 }
 
-// Сохранение данных под тегом user_id в Supabase
 async function saveState() {
+    if (!currentUser) return;
     localStorage.setItem(`mta_247_${currentUser}`, JSON.stringify(state));
 
     try {
@@ -117,10 +136,7 @@ async function saveState() {
                 updated_at: new Date().toISOString()
             })
         });
-        console.log(`💾 Сохранено в Supabase для: ${currentUser}`);
-    } catch (e) {
-        console.log('Ошибка сохранения в Supabase');
-    }
+    } catch (e) {}
 }
 
 function autoSetCurrentMonth() {
@@ -171,7 +187,7 @@ function renderPanel() {
         state.incomes.forEach(inc => {
             let sum = periodTx.filter(t => t.type === 'income' && t.category === inc.name).reduce((s, t) => s + t.amount, 0);
             let el = document.createElement('div');
-            el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
+            el.className = 'bg-gray-950 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
             el.innerHTML = `
                 <button onclick="promptManageItem('income', '${inc.id}', '${inc.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
                 <div class="w-8 h-8 rounded-full ${inc.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${inc.icon}"></i></div>
@@ -189,7 +205,7 @@ function renderPanel() {
                 renderUI();
             }
         };
-        addIncBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
+        addIncBtn.className = 'bg-gray-950/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
         addIncBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
         incList.appendChild(addIncBtn);
     }
@@ -205,7 +221,7 @@ function renderPanel() {
             totalWallets += currentBal;
 
             let el = document.createElement('div');
-            el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl flex items-center justify-between relative';
+            el.className = 'bg-gray-900 border border-gray-800 p-3 rounded-2xl flex items-center justify-between relative';
             el.innerHTML = `
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-full ${w.color} flex items-center justify-center text-sm"><i class="fa-solid ${w.icon}"></i></div>
@@ -218,19 +234,6 @@ function renderPanel() {
             `;
             wallList.appendChild(el);
         });
-
-        let addWallBtn = document.createElement('button');
-        addWallBtn.onclick = () => {
-            let name = prompt("Название кошелька:");
-            if (name) {
-                let bal = parseFloat(prompt("Начальный баланс (сом):") || 0);
-                state.wallets.push({ id: 'w_' + Date.now(), name, icon: 'fa-credit-card', color: 'bg-cyan-500/20 text-cyan-400', balance: bal });
-                renderUI();
-            }
-        };
-        addWallBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-3 rounded-2xl flex items-center justify-center gap-2 text-gray-500 hover:text-gray-300 text-xs';
-        addWallBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span>Добавить кошелек</span>`;
-        wallList.appendChild(addWallBtn);
     }
     const wallHeader = document.getElementById('totalWalletHeader');
     if (wallHeader) wallHeader.innerText = `${totalWallets.toLocaleString()} ${state.currency}`;
@@ -245,7 +248,7 @@ function renderPanel() {
         state.categories.forEach(cat => {
             let sum = periodTx.filter(t => t.type === 'expense' && t.category === cat.name).reduce((s, t) => s + t.amount, 0);
             let el = document.createElement('div');
-            el.className = 'bg-gray-900/90 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
+            el.className = 'bg-gray-950 border border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center relative';
             el.innerHTML = `
                 <button onclick="promptManageItem('category', '${cat.id}', '${cat.name}')" class="absolute top-1 right-1 text-gray-600 hover:text-rose-400 text-[10px] p-1"><i class="fa-solid fa-xmark"></i></button>
                 <div class="w-8 h-8 rounded-full ${cat.color} flex items-center justify-center text-sm mb-1"><i class="fa-solid ${cat.icon}"></i></div>
@@ -263,9 +266,18 @@ function renderPanel() {
                 renderUI();
             }
         };
-        addCatBtn.className = 'bg-gray-900/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
+        addCatBtn.className = 'bg-gray-950/40 border border-dashed border-gray-800 p-2.5 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-300';
         addCatBtn.innerHTML = `<i class="fa-solid fa-plus text-base"></i><span class="text-[9px] mt-1">Добавить</span>`;
         catGrid.appendChild(addCatBtn);
+    }
+}
+
+function addWalletPrompt() {
+    let name = prompt("Название кошелька:");
+    if (name) {
+        let bal = parseFloat(prompt("Начальный баланс (сом):") || 0);
+        state.wallets.push({ id: 'w_' + Date.now(), name, icon: 'fa-credit-card', color: 'bg-cyan-500/20 text-cyan-400', balance: bal });
+        renderUI();
     }
 }
 
@@ -275,21 +287,22 @@ function renderLoans() {
     list.innerHTML = '';
 
     if (!state.loans || state.loans.length === 0) {
-        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет долгов. Чистый горизонт!</div>';
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет активных долгов</div>';
         return;
     }
 
     state.loans.forEach(l => {
+        let monthsLeft = (l.monthlyPayment && l.monthlyPayment > 0) ? Math.ceil(l.remaining / l.monthlyPayment) : 0;
         let el = document.createElement('div');
-        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl flex justify-between items-center text-xs';
+        el.className = 'bg-gray-900 border border-gray-800 p-3 rounded-2xl space-y-1.5 text-xs';
         el.innerHTML = `
-            <div>
-                <div class="font-bold text-gray-200">${l.name}</div>
-                <div class="text-[10px] text-gray-400">Остаток долга: <b class="text-rose-400 font-mono">${l.remaining.toLocaleString()} ${state.currency}</b></div>
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-gray-100">${l.name}</span>
+                <span class="font-mono text-rose-400 font-bold">${l.remaining.toLocaleString()} ${state.currency}</span>
             </div>
-            <div class="flex items-center gap-2">
-                <button onclick="payLoan('${l.id}')" class="bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-rose-500/30">Внести платеж</button>
-                <button onclick="promptManageItem('loan', '${l.id}', '${l.name}')" class="text-gray-600 hover:text-rose-400 px-1"><i class="fa-solid fa-trash"></i></button>
+            <div class="flex justify-between items-center text-[10px] text-gray-400 pt-1 border-t border-gray-800">
+                <span>Остаток долга: <b class="text-gray-200">${l.remaining.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `(~${monthsLeft} мес.)` : ''}</span>
+                <button onclick="payLoan('${l.id}')" class="bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded-xl font-bold">Внести платеж</button>
             </div>
         `;
         list.appendChild(el);
@@ -297,11 +310,10 @@ function renderLoans() {
 }
 
 function addNewLoan() {
-    let name = prompt("Название кредита или долга:");
+    let name = prompt("Название кредита или кому должны:");
     if (!name) return;
-    let totalAmount = parseFloat(prompt("Общая сумма долга (сом):") || 0);
+    let totalAmount = parseFloat(prompt("Сумма долга (сом):") || 0);
     let monthlyPayment = parseFloat(prompt("Ежемесячный платеж (сом):") || 0);
-
     state.loans.push({ id: 'l_' + Date.now(), name, totalAmount, monthlyPayment, remaining: totalAmount });
     renderUI();
 }
@@ -309,25 +321,10 @@ function addNewLoan() {
 function payLoan(loanId) {
     let loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
-    let paySum = parseFloat(prompt(`Сумма взноса по долгу "${loan.name}" (сом):`, loan.monthlyPayment) || 0);
+    let paySum = parseFloat(prompt(`Сумма взноса по "${loan.name}" (сом):`, loan.monthlyPayment) || 0);
     if (!paySum) return;
-
     loan.remaining = Math.max(0, loan.remaining - paySum);
-    state.transactions.push({
-        id: Date.now(),
-        type: 'expense',
-        amount: paySum,
-        title: `Платеж по долгу: ${loan.name}`,
-        walletId: state.wallets[0]?.id || 'cash',
-        category: '💳 Долги',
-        date: getPeriodPrefix(),
-        fullDate: new Date().toISOString().slice(0, 10)
-    });
-
-    if (loan.remaining === 0) {
-        state.loans = state.loans.filter(l => l.id !== loanId);
-        alert(`🎉 Кредит "${loan.name}" полностью погашен!`);
-    }
+    if (loan.remaining === 0) state.loans = state.loans.filter(l => l.id !== loanId);
     renderUI();
 }
 
@@ -337,33 +334,27 @@ function renderGoals() {
     list.innerHTML = '';
 
     if (!state.goals || state.goals.length === 0) {
-        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет целей. Нажми "+ Добавить цель"!</div>';
+        list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">Нет активных целей</div>';
         return;
     }
 
     state.goals.forEach(g => {
         let pct = Math.min(100, Math.round((g.saved / g.target) * 100));
         let left = Math.max(0, g.target - g.saved);
-        let monthsLeft = g.monthlyPledge > 0 ? Math.ceil(left / g.monthlyPledge) : 0;
 
         let el = document.createElement('div');
-        el.className = 'bg-gray-900/90 border border-gray-800 p-3 rounded-2xl space-y-2 text-xs relative';
+        el.className = 'bg-gray-900 border border-gray-800 p-3 rounded-2xl space-y-2 text-xs';
         el.innerHTML = `
             <div class="flex justify-between items-center">
                 <span class="font-bold text-gray-100">${g.name}</span>
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-cyan-400 font-bold">${g.saved.toLocaleString()} / ${g.target.toLocaleString()} ${state.currency}</span>
-                    <button onclick="promptManageItem('goal', '${g.id}', '${g.name}')" class="text-gray-600 hover:text-rose-400 text-xs"><i class="fa-solid fa-trash"></i></button>
-                </div>
+                <span class="font-mono text-cyan-400 font-bold">${g.saved.toLocaleString()} / ${g.target.toLocaleString()} ${state.currency}</span>
             </div>
-            
             <div class="w-full bg-gray-950 h-2 rounded-full overflow-hidden border border-gray-800">
-                <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-500" style="width: ${pct}%"></div>
+                <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full" style="width: ${pct}%"></div>
             </div>
-
-            <div class="flex justify-between items-center text-[10px] text-gray-400 pt-0.5">
-                <span>Осталось: <b class="text-rose-400 font-mono">${left.toLocaleString()} ${state.currency}</b> ${monthsLeft > 0 ? `(~${monthsLeft} мес.)` : ''}</span>
-                <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-bold hover:bg-cyan-500/30">+ Пополнить</button>
+            <div class="flex justify-between items-center text-[10px] text-gray-400">
+                <span>Осталось: <b class="text-cyan-400">${left.toLocaleString()} ${state.currency}</b></span>
+                <button onclick="depositToGoal('${g.id}')" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-xl font-bold">+ Пополнить</button>
             </div>
         `;
         list.appendChild(el);
@@ -371,35 +362,51 @@ function renderGoals() {
 }
 
 function addNewGoal() {
-    let name = prompt("Название цели (например: Smart Watch):");
+    let name = prompt("Название финансовой цели:");
     if (!name) return;
     let target = parseFloat(prompt("Стоимость цели (сом):") || 0);
     if (!target) return;
-    let pledge = parseFloat(prompt("Сколько откладывать в месяц (сом):") || 2000);
-
-    state.goals.push({ id: 'g_' + Date.now(), name, target, saved: 0, monthlyPledge: pledge });
+    state.goals.push({ id: 'g_' + Date.now(), name, target, saved: 0 });
     renderUI();
 }
 
 function depositToGoal(goalId) {
     let amount = parseFloat(prompt("Сколько отложить в копилку (сом)?") || 0);
     if (!amount) return;
-
     let goal = state.goals.find(g => g.id === goalId);
     if (goal) {
         goal.saved += amount;
-        state.transactions.push({
-            id: Date.now(),
-            type: 'expense',
-            amount: amount,
-            title: `Копилка: ${goal.name}`,
-            walletId: state.wallets[0]?.id || 'cash',
-            category: '🎯 Цели',
-            date: getPeriodPrefix(),
-            fullDate: new Date().toISOString().slice(0, 10)
-        });
         renderUI();
     }
+}
+
+function openNightAuditModal() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayTx = state.transactions.filter(t => t.type === 'expense' && t.fullDate === todayStr);
+    let todaySpent = todayTx.reduce((s, t) => s + t.amount, 0);
+    let limit = state.dailyLimit || 2500;
+    let diff = limit - todaySpent;
+
+    const content = document.getElementById('auditContent');
+    if (content) {
+        content.innerHTML = `
+            <div class="flex justify-between"><span>Дата:</span><b class="text-cyan-400">${todayStr}</b></div>
+            <div class="flex justify-between"><span>Дневной лимит:</span><b class="text-gray-200">${limit.toLocaleString()} ${state.currency}</b></div>
+            <div class="flex justify-between"><span>Потрачено сегодня:</span><b class="text-rose-400">${todaySpent.toLocaleString()} ${state.currency}</b></div>
+            <div class="border-t border-gray-800 pt-2 mt-2 flex justify-between font-bold">
+                <span>Итог дня:</span>
+                <b class="${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${diff >= 0 ? 'Экономия: +' + diff.toLocaleString() : 'Перерасход: ' + diff.toLocaleString()} ${state.currency}</b>
+            </div>
+        `;
+    }
+
+    const modal = document.getElementById('nightAuditModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeNightAuditModal() {
+    const modal = document.getElementById('nightAuditModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 function renderForecast() {
@@ -408,14 +415,13 @@ function renderForecast() {
 
     let inc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     let exp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    
     let monthlySavings = Math.max(0, inc - exp);
     let yearForecast = monthlySavings * 12;
 
     const fcTot = document.getElementById('forecastYearTotal');
     if (fcTot) fcTot.innerText = `${yearForecast.toLocaleString()} ${state.currency}`;
     const fcDesc = document.getElementById('forecastDescText');
-    if (fcDesc) fcDesc.innerText = `При остатке ${monthlySavings.toLocaleString()} сом в месяц, за 12 месяцев у вас зафиксируется ${yearForecast.toLocaleString()} ${state.currency}.`;
+    if (fcDesc) fcDesc.innerText = `Если сохранять текущую разницу доходов и трат, за 12 месяцев отложится указанная сумма.`;
 }
 
 function promptManageItem(type, id, name) {
@@ -437,8 +443,6 @@ function confirmDeleteItem() {
     if (itemToDelete.type === 'income') state.incomes = state.incomes.filter(i => i.id !== itemToDelete.id);
     else if (itemToDelete.type === 'wallet') state.wallets = state.wallets.filter(w => w.id !== itemToDelete.id);
     else if (itemToDelete.type === 'category') state.categories = state.categories.filter(c => c.id !== itemToDelete.id);
-    else if (itemToDelete.type === 'goal') state.goals = state.goals.filter(g => g.id !== itemToDelete.id);
-    else if (itemToDelete.type === 'loan') state.loans = state.loans.filter(l => l.id !== itemToDelete.id);
     closeManageModal();
     renderUI();
 }
@@ -452,8 +456,6 @@ function renderHistory() {
 
     let inc = periodTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     let exp = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    const saldoEl = document.getElementById('historySaldo');
-    if (saldoEl) saldoEl.innerText = `${(inc - exp).toLocaleString()} ${state.currency}`;
 
     if (periodTx.length === 0) {
         list.innerHTML = '<div class="text-gray-500 text-xs text-center py-8">За этот период нет записей</div>';
@@ -463,7 +465,7 @@ function renderHistory() {
     periodTx.slice().reverse().forEach(t => {
         let isInc = t.type === 'income';
         let el = document.createElement('div');
-        el.className = 'bg-gray-900/80 border border-gray-800 p-3 rounded-2xl flex items-center justify-between text-xs';
+        el.className = 'bg-gray-900 border border-gray-800 p-3 rounded-2xl flex items-center justify-between text-xs';
         el.innerHTML = `
             <div class="flex items-center gap-3">
                 <div class="w-7 h-7 rounded-lg ${isInc ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'} flex items-center justify-center font-bold text-xs">
@@ -515,12 +517,12 @@ function setTxType(type) {
     cSelect.innerHTML = '';
 
     if (type === 'expense') {
-        if (btnExp) btnExp.className = 'flex-1 py-1 rounded-lg bg-rose-500 text-white font-extrabold';
-        if (btnInc) btnInc.className = 'flex-1 py-1 rounded-lg text-gray-400';
+        if (btnExp) btnExp.className = 'flex-1 py-1.5 rounded-xl bg-rose-500 text-white font-extrabold text-xs';
+        if (btnInc) btnInc.className = 'flex-1 py-1.5 rounded-xl text-gray-400 text-xs';
         state.categories.forEach(c => cSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`);
     } else {
-        if (btnInc) btnInc.className = 'flex-1 py-1 rounded-lg bg-emerald-500 text-white font-extrabold';
-        if (btnExp) btnExp.className = 'flex-1 py-1 rounded-lg text-gray-400';
+        if (btnInc) btnInc.className = 'flex-1 py-1.5 rounded-xl bg-emerald-500 text-white font-extrabold text-xs';
+        if (btnExp) btnExp.className = 'flex-1 py-1.5 rounded-xl text-gray-400 text-xs';
         state.incomes.forEach(i => cSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`);
     }
 }
@@ -575,11 +577,11 @@ function initChart() {
 function setReportType(type) {
     currentReportType = type;
     const btnD = document.getElementById('repBtnDay');
-    if (btnD) btnD.className = type === 'day' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    if (btnD) btnD.className = type === 'day' ? 'flex-1 py-1.5 rounded-xl text-xs bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-xl text-xs text-gray-400 font-bold';
     const btnM = document.getElementById('repBtnMonth');
-    if (btnM) btnM.className = type === 'month' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    if (btnM) btnM.className = type === 'month' ? 'flex-1 py-1.5 rounded-xl text-xs bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-xl text-xs text-gray-400 font-bold';
     const btnY = document.getElementById('repBtnYear');
-    if (btnY) btnY.className = type === 'year' ? 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-lg text-gray-400';
+    if (btnY) btnY.className = type === 'year' ? 'flex-1 py-1.5 rounded-xl text-xs bg-cyan-500 text-black font-extrabold' : 'flex-1 py-1.5 rounded-xl text-xs text-gray-400 font-bold';
     renderReport();
 }
 
@@ -627,10 +629,10 @@ function renderReport() {
         let pct = total > 0 ? Math.round((val / total) * 100) : 0;
         let color = reportChartInstance.data.datasets[0].backgroundColor[idx % 7];
         bd.innerHTML += `
-            <div class="flex justify-between items-center text-gray-300">
+            <div class="flex justify-between items-center text-gray-300 text-xs">
                 <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" style="background-color:${color}"></span><span>${cat}</span></div>
                 <div class="font-mono font-bold">${val.toLocaleString()} ${state.currency} (${pct}%)</div>
             </div>
         `;
     });
-}ы
+}
